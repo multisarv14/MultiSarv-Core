@@ -1,0 +1,117 @@
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { defineSecret } from "firebase-functions/params";
+
+/**
+ * Core la mahit aslele projects:
+ *  - built-in (NOAI) — code madhe, key `PROJECT_KEY_<ID>` secret madhe;
+ *  - super admin ne panel madhun add kelele — `projects/{id}` (Firestore),
+ *    service account key `projectKeys/{id}` madhe encrypt karun (client la kadhich nahi).
+ */
+export interface CoreProject {
+  id: string;
+  name: string;
+  builtIn: boolean;
+  /** Firebase web config + service account jodla aahe. */
+  connected: boolean;
+  menus: readonly string[];
+  /** Built-in sathi secret. */
+  key?: ReturnType<typeof defineSecret>;
+  /** Dynamic key badalli ki navin Admin app. */
+  keyVersion?: number;
+}
+
+/** NOAI structure che sagle menus — panel cha `NAV` (src/components/layout/nav.ts). */
+export const MARKETPLACE_MENUS = [
+  "dashboard",
+  "users",
+  "kyc",
+  "tasks",
+  "disputes",
+  "payouts",
+  "ledger",
+  "notifications",
+  "catalog",
+] as const;
+
+const BUILT_IN: CoreProject[] = [
+  { id: "noai", name: "NOAI", builtIn: true, connected: true, key: defineSecret("PROJECT_KEY_NOAI"), menus: MARKETPLACE_MENUS },
+];
+
+/** Dynamic projects chya service account keys encrypt karnari master key. */
+export const KEYS_SECRET = defineSecret("PROJECT_KEYS_SECRET");
+
+export const PROJECT_SECRETS = [...BUILT_IN.map((p) => p.key!), KEYS_SECRET];
+
+/** Tickets sathi "Multisarv" (master panel swatah) — Firebase project nahi. */
+export const MULTISARV_ID = "multisarv";
+
+const db = () => getFirestore();
+
+export const isBuiltIn = (id: unknown) => BUILT_IN.some((p) => p.id === id);
+
+function fromDoc(id: string, d: FirebaseFirestore.DocumentData): CoreProject {
+  return {
+    id,
+    name: String(d.name ?? id),
+    builtIn: false,
+    connected: d.connected === true,
+    menus: MARKETPLACE_MENUS,
+    keyVersion: Number(d.keyVersion ?? 0),
+  };
+}
+
+export async function listProjects(): Promise<CoreProject[]> {
+  const snap = await db().collection("projects").get();
+  // `builtIn: true` docs = built-in project chi overview mahiti (overlay), vegla project nahi.
+  return [...BUILT_IN, ...snap.docs.filter((d) => d.get("builtIn") !== true).map((d) => fromDoc(d.id, d.data()))];
+}
+
+export async function getProject(id: unknown): Promise<CoreProject | null> {
+  if (typeof id !== "string" || !id) return null;
+  const built = BUILT_IN.find((p) => p.id === id);
+  if (built) return built;
+  const snap = await db().collection("projects").doc(id).get();
+  return snap.exists ? fromDoc(snap.id, snap.data()!) : null;
+}
+
+// ── Key encryption (AES-256-GCM) ─────────────────────────────────────
+
+const masterKey = () => createHash("sha256").update(KEYS_SECRET.value()).digest();
+
+export function encryptKey(plain: string): string {
+  const iv = randomBytes(12);
+  const c = createCipheriv("aes-256-gcm", masterKey(), iv);
+  const data = Buffer.concat([c.update(plain, "utf8"), c.final()]);
+  return [iv, c.getAuthTag(), data].map((b) => b.toString("base64")).join(".");
+}
+
+function decryptKey(enc: string): string {
+  const [iv, tag, data] = enc.split(".").map((s) => Buffer.from(s, "base64"));
+  const d = createDecipheriv("aes-256-gcm", masterKey(), iv);
+  d.setAuthTag(tag);
+  return Buffer.concat([d.update(data), d.final()]).toString("utf8");
+}
+
+/** Service account JSON ne target project cha Admin SDK (named app, cache). */
+export function authFromKey(name: string, json: { project_id: string }): Auth {
+  const existing = getApps().find((a) => a.name === name);
+  if (existing) return getAuth(existing);
+  return getAuth(initializeApp({ credential: cert(json as never), projectId: json.project_id }, name));
+}
+
+/** Target project cha Admin Auth — built-in secret kinva encrypted Firestore key. */
+export async function projectAuth(project: CoreProject): Promise<Auth> {
+  if (project.builtIn) {
+    return authFromKey(`project-${project.id}`, JSON.parse(project.key!.value()));
+  }
+  const snap = await db().collection("projectKeys").doc(project.id).get();
+  if (!snap.exists) throw new Error(`${project.id}: not connected`);
+  return authFromKey(`project-${project.id}-${project.keyVersion ?? 0}`, JSON.parse(decryptKey(snap.get("enc"))));
+}
+
+/** Target project madhe admin cha uid — app users pasun vegla disava mhanun prefix. */
+export const panelUid = (uid: string) => `ms_${uid}`;

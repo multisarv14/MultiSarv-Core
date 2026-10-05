@@ -1,0 +1,7 @@
+functions/lib
+functions/node_modules
+functions/keys
+functions/service-account.json
+functions/.secret.local
+*.log
+*-debug.log

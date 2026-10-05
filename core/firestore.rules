@@ -1,0 +1,127 @@
+rules_version = '2';
+
+// Multisarv core — admins ani tyancha project / menu access.
+// Sagle writes Cloud Functions (Admin SDK) kartat; client fakt vachto
+// (apvad: company profile — super admin thet lihito).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSuper() {
+      return request.auth != null && request.auth.token.get('superAdmin', false) == true;
+    }
+
+    // Admin la swatahcha doc (access / menus); super admin la sagle.
+    match /admins/{uid} {
+      allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
+      allow write: if false;
+
+      // Super Admin → Notifications — fakt swatahcha inbox; "vachla" (isRead) evdhach badal.
+      match /inbox/{noticeId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow update: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+          && request.resource.data.isRead == true;
+        allow create, delete: if false;
+      }
+    }
+
+    // Settings → Roles — sagle admins vachtat (role naav); writes fakt functions.
+    match /roles/{roleId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Internal Chat — fakt active Core Users, ani fakt tyanche swatahche chats
+    // (chatId = "uidA__uidB"). Writes fakt functions.
+    function isCoreUser() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('active', false) == true;
+    }
+    function inChat(chatId) {
+      return isCoreUser() && chatId.split('__').hasAny([request.auth.uid]);
+    }
+    match /chats/{chatId} {
+      allow get: if inChat(chatId);
+      // Chat list query (`members array-contains me`).
+      allow list: if isCoreUser() && request.auth.uid in resource.data.members;
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if inChat(chatId);
+        allow write: if false;
+      }
+    }
+
+    // Pathavlelya notices chi history — fakt super admin.
+    match /coreNotices/{id} {
+      allow read: if isSuper();
+      allow write: if false;
+    }
+
+    // Company profile — sagle admins vachtat (sidebar brand), fakt super admin badalto.
+    match /settings/company {
+      allow read: if request.auth != null;
+      allow write: if isSuper()
+        && request.resource.data.keys().hasOnly(['name', 'logo', 'address', 'city', 'state', 'pincode',
+             'country', 'phone', 'email', 'website', 'gstin', 'pan', 'updatedBy', 'updatedAt'])
+        && request.resource.data.updatedBy == request.auth.uid
+        && (!('logo' in request.resource.data) || request.resource.data.logo.size() < 300000);
+    }
+
+    // Client / Dev tickets — module cha "view" asel tar vachta yeto; writes fakt functions.
+    function canViewTickets(kind) {
+      let me = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+      return request.auth != null && (isSuper()
+        || (me.active == true && me.get('modules', {}).get(kind + 'Tickets', []).hasAny(['view'])));
+    }
+
+    // Dev Tickets scope (functions `devVisible` sobat same): super admin sagle;
+    // itar — module view + ticket cha project allowed (Multisarv sagle Core users)
+    // + (assign permission / swatahla assigned / swatah raise kelela).
+    function devScope(t) {
+      let me = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+      let perms = me.get('modules', {}).get('devTickets', []);
+      return isSuper() || (
+        me.active == true
+        && perms.hasAny(['view'])
+        && (t.projectId == 'multisarv' || me.get('projects', {}).get(t.projectId, []).size() > 0)
+        && (perms.hasAny(['assign'])
+          || (t.get('assignedTo', null) != null && t.assignedTo.uid == request.auth.uid)
+          || (t.get('raisedBy', null) != null && t.raisedBy.uid == request.auth.uid)));
+    }
+
+    function canReadTicket(t) {
+      return request.auth != null && (t.kind == 'dev' ? devScope(t) : canViewTickets(t.kind));
+    }
+
+    match /tickets/{ticketId} {
+      allow get: if canReadTicket(resource.data);
+      // List query: Client Tickets adhi sarkhe; Dev Tickets chi list fakt super admin
+      // (itaranna `listDevTickets` function scope lavun deto).
+      allow list: if request.auth != null
+        && (isSuper() || (resource.data.kind == 'client' && canViewTickets('client')));
+      allow write: if false;
+
+      match /comments/{commentId} {
+        allow read: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+        allow write: if false;
+      }
+    }
+
+    // Projects registry — sagle admins vachtat (web config public aste).
+    // Service account keys `projectKeys` madhe — client la kahich access nahi (khalcha deny).
+    match /projects/{projectId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /auditLogs/{id} {
+      allow read: if isSuper();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

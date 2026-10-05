@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Multisarv core Storage — fakt Internal Chat attachments.
+// chat/{uidA__uidB}/{uploader}/{file}: uploader swatah, fakt swatahchya chat madhe;
+// 10 MB paryant, common file types ani voice messages (audio). Vachne fakt tya chat che members.
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Active Core User (core `admins` doc) — project / itar accounts nahi.
+    function isCoreUser() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('active', false) == true;
+    }
+
+    match /chat/{chatId}/{uid}/{fileName} {
+      allow read: if isCoreUser() && chatId.split('__').hasAny([request.auth.uid]);
+      allow create: if isCoreUser()
+        && request.auth.uid == uid
+        && chatId.split('__').hasAny([uid])
+        && request.resource.size > 0
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
