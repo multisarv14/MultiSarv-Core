@@ -63,6 +63,8 @@ export interface TicketComment {
   text?: string;
   from?: string;
   to?: string;
+  /** Comment madhe `@mention` kelele. */
+  mentions: { uid: string; name: string }[];
   by: Person;
   at: Date | null;
 }
@@ -161,6 +163,7 @@ export function useTicketComments(id: string | undefined): TicketComment[] | nul
               text: x.text,
               from: x.from,
               to: x.to,
+              mentions: Array.isArray(x.mentions) ? x.mentions : [],
               by: x.by as Person,
               at: toDate(x.at),
             };
@@ -206,5 +209,21 @@ export const updateTicket = (id: string, input: TicketInput) => andBump(callCore
 export const assignTicket = (id: string, assignee: string | null) => andBump(callCore("assignTicket", { id, assignee }));
 export const setTicketStatus = (id: string, status: TicketStatus) => andBump(callCore("setTicketStatus", { id, status }));
 /** `status` = assignee cha comment ticket Open → In Process kela tar. */
-export const addTicketComment = (id: string, text: string) =>
-  andBump(callCore<{ ok: boolean; status: TicketStatus | null }>("addTicketComment", { id, text }));
+export const addTicketComment = (id: string, text: string, mentions: string[] = []) =>
+  andBump(callCore<{ ok: boolean; status: TicketStatus | null }>("addTicketComment", { id, text, mentions }));
+
+/** `@mention` sathi — ha ticket pahu shaknare users (server scope lavto). */
+export function useTicketPeople(id: string | undefined) {
+  const [list, setList] = useState<Person[]>([]);
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    callCore<Person[]>("listTicketPeople", { id })
+      .then((r) => alive && setList(r))
+      .catch(() => alive && setList([]));
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  return list;
+}

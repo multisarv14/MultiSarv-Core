@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Multisarv core Storage — fakt Internal Chat attachments.
-// chat/{uidA__uidB}/{uploader}/{file}: uploader swatah, fakt swatahchya chat madhe;
+// chat/{chatId}/{uploader}/{file}: uploader swatah, fakt swatahchya chat madhe (1:1 / group);
 // 10 MB paryant, common file types ani voice messages (audio). Vachne fakt tya chat che members.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -11,14 +11,21 @@ service firebase.storage {
         && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('active', false) == true;
     }
 
+    // 1:1 (chatId = "uidA__uidB") kinva group (chat doc che `members`).
+    function inChat(chatId) {
+      return chatId.split('__').hasAny([request.auth.uid])
+        || request.auth.uid in firestore.get(/databases/(default)/documents/chats/$(chatId)).data.get('members', []);
+    }
+
     match /chat/{chatId}/{uid}/{fileName} {
-      allow read: if isCoreUser() && chatId.split('__').hasAny([request.auth.uid]);
+      allow read: if isCoreUser() && inChat(chatId);
       allow create: if isCoreUser()
         && request.auth.uid == uid
-        && chatId.split('__').hasAny([uid])
+        && inChat(chatId)
         && request.resource.size > 0
-        && request.resource.size <= 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
+        // Video 50 MB, baki 10 MB (functions `chatMaxFor` sobat same).
+        && request.resource.size <= (request.resource.contentType.matches('video/.*') ? 50 : 10) * 1024 * 1024
+        && request.resource.contentType.matches('video/(mp4|quicktime|webm|3gpp)|image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
       allow update, delete: if false;
     }
 

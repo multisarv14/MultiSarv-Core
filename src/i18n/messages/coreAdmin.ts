@@ -110,6 +110,7 @@ export const coreAdmin = defineMessages({
   "chat.record": { en: "Record voice message", hi: "वॉइस मैसेज रिकॉर्ड करें", mr: "व्हॉइस मेसेज रेकॉर्ड करा", gu: "વૉઇસ મેસેજ રેકોર્ડ કરો" },
   "chat.recordCancel": { en: "Discard recording", hi: "रिकॉर्डिंग हटाएँ", mr: "रेकॉर्डिंग टाका", gu: "રેકોર્ડિંગ કાઢો" },
   "chat.recording": { en: "Recording… (max {max})", hi: "रिकॉर्डिंग… (अधिकतम {max})", mr: "रेकॉर्डिंग… (कमाल {max})", gu: "રેકોર્ડિંગ… (મહત્તમ {max})" },
+  "chat.deleted": { en: "This message was deleted", hi: "यह मैसेज डिलीट किया गया", mr: "हा मेसेज डिलीट केला", gu: "આ મેસેજ ડિલીટ કરાયો" },
   "chat.voice": { en: "Voice message", hi: "वॉइस मैसेज", mr: "व्हॉइस मेसेज", gu: "વૉઇસ મેસેજ" },
   "chat.voiceFailed": { en: "Couldn't load audio", hi: "ऑडियो लोड नहीं हुआ", mr: "ऑडिओ लोड झाला नाही", gu: "ઑડિયો લોડ ન થયો" },
   "chat.pushTest": { en: "Send test notification", hi: "टेस्ट नोटिफ़िकेशन भेजें", mr: "टेस्ट नोटिफिकेशन पाठवा", gu: "ટેસ્ટ નોટિફિકેશન મોકલો" },
@@ -133,6 +134,7 @@ export const coreAdmin = defineMessages({
   "chat.empty": { en: "No messages yet — say hi to {name}", hi: "अभी कोई संदेश नहीं — {name} को hi कहें", mr: "अजून मेसेज नाहीत — {name} ना hi म्हणा", gu: "હજી કોઈ મેસેજ નથી — {name} ને hi કહો" },
   "chat.placeholder": { en: "Type a message…", hi: "संदेश लिखें…", mr: "मेसेज लिहा…", gu: "મેસેજ લખો…" },
   "chat.attach": { en: "Attach file", hi: "फ़ाइल जोड़ें", mr: "फाइल जोडा", gu: "ફાઇલ જોડો" },
+  "chat.camera": { en: "Camera", hi: "कैमरा", mr: "कॅमेरा", gu: "કૅમેરા" },
   "chat.send": { en: "Send", hi: "भेजें", mr: "पाठवा", gu: "મોકલો" },
   "chat.you": { en: "You", hi: "आप", mr: "तुम्ही", gu: "તમે" },
   "chat.badType": {
@@ -148,6 +150,20 @@ export const coreAdmin = defineMessages({
   "core.err.chatEmpty": { en: "Type a message or attach a file.", hi: "संदेश लिखें या फ़ाइल जोड़ें।", mr: "मेसेज लिहा किंवा फाइल जोडा.", gu: "મેસેજ લખો અથવા ફાઇલ જોડો." },
   "core.err.badPushToken": { en: "Invalid notification token.", hi: "नोटिफ़िकेशन टोकन गलत है।", mr: "नोटिफिकेशन टोकन चुकीचा आहे.", gu: "નોટિફિકેશન ટોકન ખોટું છે." },
   "core.err.chatDenied": { en: "You can't access this chat.", hi: "आप यह चैट नहीं देख सकते।", mr: "तुम्हाला हे चॅट पाहता येत नाही.", gu: "તમે આ ચૅટ જોઈ શકતા નથી." },
+  "core.err.chatBadMessage": { en: "Message not found.", hi: "मैसेज नहीं मिला।", mr: "मेसेज सापडला नाही.", gu: "મેસેજ મળ્યો નથી." },
+  "core.err.chatDeleteDenied": { en: "You can only delete your own messages for everyone.", hi: "सबके लिए सिर्फ़ अपने मैसेज डिलीट कर सकते हैं।", mr: "सर्वांसाठी फक्त स्वतःचे मेसेज डिलीट करता येतात.", gu: "બધા માટે ફક્ત પોતાના મેસેજ ડિલીટ કરી શકાય." },
+  "core.err.groupBadName": { en: "Group name must be 1–60 characters.", hi: "ग्रुप का नाम 1–60 अक्षरों का होना चाहिए।", mr: "ग्रुपचे नाव 1–60 अक्षरांचे हवे.", gu: "ગ્રુપનું નામ 1–60 અક્ષરનું હોવું જોઈએ." },
+  "core.err.groupBadMembers": { en: "Pick at least one member (max 100).", hi: "कम से कम एक सदस्य चुनें (अधिकतम 100)।", mr: "किमान एक सदस्य निवडा (कमाल 100).", gu: "ઓછામાં ઓછો એક સભ્ય પસંદ કરો (મહત્તમ 100)." },
+  "core.err.groupAdminOnly": { en: "Only group admins can change group settings or members.", hi: "सिर्फ़ ग्रुप एडमिन सेटिंग्स या सदस्य बदल सकते हैं।", mr: "फक्त ग्रुप अ‍ॅडमिन सेटिंग्ज किंवा सदस्य बदलू शकतात.", gu: "ફક્ત ગ્રુપ એડમિન સેટિંગ્સ કે સભ્ય બદલી શકે." },
+  "core.err.callBadSignal": { en: "Call setup failed. Please try again.", hi: "कॉल शुरू नहीं हो सकी। फिर कोशिश करें।", mr: "कॉल सुरू होऊ शकला नाही. पुन्हा प्रयत्न करा.", gu: "કૉલ શરૂ ન થયો. ફરી પ્રયાસ કરો." },
+  "core.err.callNotFound": { en: "This call no longer exists.", hi: "यह कॉल अब मौजूद नहीं है।", mr: "हा कॉल आता अस्तित्वात नाही.", gu: "આ કૉલ હવે નથી." },
+  "core.err.callDenied": { en: "You are not part of this call.", hi: "आप इस कॉल का हिस्सा नहीं हैं।", mr: "तुम्ही या कॉलचा भाग नाही.", gu: "તમે આ કૉલનો ભાગ નથી." },
+  "core.err.callYouBusy": { en: "You're already on another call.", hi: "आप पहले से दूसरी कॉल पर हैं।", mr: "तुम्ही आधीच दुसऱ्या कॉलवर आहात.", gu: "તમે પહેલેથી બીજા કૉલ પર છો." },
+  "core.err.callOver": { en: "This call has already ended.", hi: "यह कॉल खत्म हो चुकी है।", mr: "हा कॉल आधीच संपला आहे.", gu: "આ કૉલ પૂરો થઈ ગયો છે." },
+  "core.err.groupAdminsOnlySend": { en: "Only group admins can send messages in this group.", hi: "इस ग्रुप में सिर्फ़ एडमिन संदेश भेज सकते हैं।", mr: "या ग्रुपमध्ये फक्त अ‍ॅडमिन मेसेज पाठवू शकतात.", gu: "આ ગ્રુપમાં ફક્ત એડમિન મેસેજ મોકલી શકે." },
+  "core.err.chatBadReaction": { en: "That reaction isn't supported.", hi: "यह प्रतिक्रिया मान्य नहीं।", mr: "ही प्रतिक्रिया चालत नाही.", gu: "આ પ્રતિક્રિયા માન્ય નથી." },
+  "core.err.groupBadDescription": { en: "Group description can be up to 500 characters.", hi: "ग्रुप विवरण 500 अक्षरों तक हो सकता है।", mr: "ग्रुपचे वर्णन 500 अक्षरांपर्यंत असू शकते.", gu: "ગ્રુપ વર્ણન 500 અક્ષર સુધી હોઈ શકે." },
+  "core.err.groupBadPhoto": { en: "That group photo can't be used. Pick a PNG, JPG or WebP image.", hi: "यह ग्रुप फ़ोटो नहीं चलेगी। PNG, JPG या WebP इमेज चुनें।", mr: "हा ग्रुप फोटो चालणार नाही. PNG, JPG किंवा WebP इमेज निवडा.", gu: "આ ગ્રુપ ફોટો નહીં ચાલે. PNG, JPG અથવા WebP ઇમેજ પસંદ કરો." },
 
   // ── Core notifications ──
   "cn.subtitle": {

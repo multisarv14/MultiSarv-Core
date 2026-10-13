@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { MENU_KEYS } from "@/components/layout/nav";
 import { PageHeader } from "@/components/ui/data";
 import { Avatar, Badge, Button, Card, EmptyState, Input, Skeleton } from "@/components/ui/primitives";
 import { t } from "@/i18n";
@@ -162,7 +161,7 @@ export function ModuleAccess() {
                       <KeyRound className="size-3.5" /> {t("access.editor.access")}
                     </span>
                     <span className="text-[11px] text-muted">
-                      {t("access.editor.accessHint")} · {MENU_KEYS.length}
+                      {t("access.editor.accessHint")}
                     </span>
                   </div>
                   <AccessMatrix value={draft} onChange={setDraft} />

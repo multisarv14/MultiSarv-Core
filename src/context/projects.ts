@@ -44,6 +44,9 @@ const toDef = (id: string, d: Record<string, unknown>): ProjectDef => ({
   phonePrefix: "+91",
   platformFeePercent: 10,
   firebase: d.connected === true && d.firebase ? (d.firebase as ProjectDef["firebase"]) : null,
+  // Core `type` — juna / rikama = marketplace (NOAI sarkha).
+  template: d.type === "society" ? "society" : "marketplace",
+  databaseId: typeof d.databaseId === "string" && d.databaseId ? d.databaseId : undefined,
   vapidKey: (d.vapidKey as string | null) ?? undefined,
   builtIn: false,
 });

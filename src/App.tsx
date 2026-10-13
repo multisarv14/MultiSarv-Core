@@ -22,6 +22,16 @@ const Ledger = page(() => import("./pages/Ledger"), "Ledger");
 const Catalog = page(() => import("./pages/Catalog"), "Catalog");
 const Notifications = page(() => import("./pages/Notifications"), "Notifications");
 
+// SocietySarv sarkhe projects (`/s/:projectId`)
+const SocietyDashboard = page(() => import("./pages/society/SocietyDashboard"), "SocietyDashboard");
+const Residents = page(() => import("./pages/society/Residents"), "Residents");
+const Bills = page(() => import("./pages/society/Bills"), "Bills");
+const SocietyFinance = page(() => import("./pages/society/Finance"), "Finance");
+const Visitors = page(() => import("./pages/society/Visitors"), "Visitors");
+const Notices = page(() => import("./pages/society/Notices"), "Notices");
+const Complaints = page(() => import("./pages/society/Complaints"), "Complaints");
+const Contacts = page(() => import("./pages/society/Contacts"), "Contacts");
+
 // Master panel
 const Projects = page(() => import("./pages/master/Projects"), "Projects");
 const ProjectOverview = page(() => import("./pages/master/projects/ProjectOverview"), "ProjectOverview");
@@ -98,6 +108,21 @@ const router = createBrowserRouter([
           { path: "ledger", element: <Ledger /> },
           { path: "notifications", element: <Notifications /> },
           { path: "catalog", element: <Catalog /> },
+          { path: "*", element: <Navigate to="." replace /> },
+        ],
+      },
+      {
+        path: "/s/:projectId",
+        element: <ProjectGate template="society" />,
+        children: [
+          { index: true, element: <SocietyDashboard /> },
+          { path: "residents", element: <Residents /> },
+          { path: "complaints", element: <Complaints /> },
+          { path: "visitors", element: <Visitors /> },
+          { path: "bills", element: <Bills /> },
+          { path: "finance", element: <SocietyFinance /> },
+          { path: "notices", element: <Notices /> },
+          { path: "contacts", element: <Contacts /> },
           { path: "*", element: <Navigate to="." replace /> },
         ],
       },

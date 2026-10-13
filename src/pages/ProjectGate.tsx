@@ -6,11 +6,13 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Backdrop } from "@/components/layout/Backdrop";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { Button, Card, EmptyState } from "@/components/ui/primitives";
-import type { ProjectDef } from "@/config/projects";
+import { projectBase, templateOf, type ProjectDef, type ProjectTemplate } from "@/config/projects";
 import { useProjects } from "@/context/projects";
 import { useProjectAuth } from "@/context/auth";
 import { ProjectContext } from "@/context/project";
 import { t } from "@/i18n";
+
+import { SocietyShell } from "./society/SocietyShell";
 
 
 const Code = ({ children }: { children: ReactNode }) => <code className="rounded bg-surface-2 px-1">{children}</code>;
@@ -27,13 +29,18 @@ const back = (
   </Link>
 );
 
-/** `/p/:projectId/*` — core access tapasun project madhe silent login, mag shell. */
-export function ProjectGate() {
+/**
+ * `/p/:projectId/*` (NOAI sarkhe) ani `/s/:projectId/*` (SocietySarv sarkhe) — core access
+ * tapasun project madhe silent login, mag tya template cha shell.
+ */
+export function ProjectGate({ template = "marketplace" }: { template?: ProjectTemplate }) {
   const { projectId } = useParams();
   const project = useProjects().find((p) => p.id === projectId);
   const auth = useProjectAuth(project);
 
   if (!project) return <Navigate to="/" replace />;
+  // Juna / chukicha link (`/p/societysarv/...`) → project chya template cha URL.
+  if (templateOf(project) !== template) return <Navigate to={projectBase(project)} replace />;
 
   switch (auth.status) {
     case "unconfigured":
@@ -84,7 +91,7 @@ export function ProjectGate() {
     case "admin":
       return (
         <ProjectContext.Provider value={{ project, admin: auth.user, menus: auth.menus }}>
-          <AppShell />
+          {template === "society" ? <SocietyShell key={project.id} /> : <AppShell />}
         </ProjectContext.Provider>
       );
   }

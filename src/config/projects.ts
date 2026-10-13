@@ -37,6 +37,10 @@ export interface ProjectDef {
   /** Platform commission (%) — fakt display sathi; khara hishob Functions karto. */
   platformFeePercent: number;
   firebase: FirebaseOptions | null;
+  /** Panel che pages — nasel tar NOAI sarkhe (`marketplace`). */
+  template?: ProjectTemplate;
+  /** Named Firestore database (SocietySarv: `societysarv-app-db`); nasel tar `(default)`. */
+  databaseId?: string;
   /** Web push (FCM) VAPID public key — Console → Cloud Messaging → Web Push certificates. */
   vapidKey?: string;
   /** Code madhe (NOAI); nasel tar super admin ne panel madhun add kelela. */
@@ -55,6 +59,17 @@ export interface ProjectDef {
   updatedAt?: Date | null;
   createdBy?: ProjectPerson | null;
 }
+
+/**
+ * Project cha data structure — konte pages / menus. Core `projects.ts` → `TEMPLATES` sobat same.
+ *  - marketplace: NOAI (users, tasks, escrows, payouts …)
+ *  - society: SocietySarv (`societies/{code}/residents, maintenance_bills …`)
+ */
+export type ProjectTemplate = "marketplace" | "society";
+export const PROJECT_TEMPLATES: ProjectTemplate[] = ["marketplace", "society"];
+export const templateOf = (p: Pick<ProjectDef, "template"> | null | undefined): ProjectTemplate => p?.template ?? "marketplace";
+/** Project shell cha URL — `/p/noai`, `/s/societysarv`. */
+export const projectBase = (p: Pick<ProjectDef, "id" | "template">) => `/${templateOf(p) === "society" ? "s" : "p"}/${p.id}`;
 
 export type ProjectStatus = "planning" | "rnd" | "development" | "testing" | "active" | "onHold";
 export type ProjectType = "webApp" | "mobileApp" | "webMobile" | "marketplace" | "website" | "internal" | "other";

@@ -32,7 +32,8 @@ export function services(project: ProjectDef): ProjectServices {
   const s: ProjectServices = {
     app,
     auth: getAuth(app),
-    db: getFirestore(app),
+    // Named database (SocietySarv) — nasel tar `(default)`, NOAI sathi jasa hota tasach.
+    db: project.databaseId ? getFirestore(app, project.databaseId) : getFirestore(app),
     storage: getStorage(app),
     functions: getFunctions(app, project.region),
   };

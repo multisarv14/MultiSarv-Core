@@ -18,7 +18,7 @@ import {
   TICKET_PRIORITIES,
   type TicketPriority,
 } from "@/api/tickets";
-import { NAV } from "@/components/layout/nav";
+import { NAV, navFor, SOCIETY_NAV } from "@/components/layout/nav";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { Modal } from "@/components/ui/overlay";
 import { Avatar, Badge, Button, Input, Label, Select, Spinner, Textarea, type Tone } from "@/components/ui/primitives";
@@ -75,13 +75,14 @@ export function PriorityBadge({ priority }: { priority: TicketPriority }) {
 }
 
 /**
- * Ticket sathi app modules — project che menus (`NAV`, core MARKETPLACE_MENUS sobat same).
+ * Ticket sathi app modules — project che menus (`navFor`, core `menusFor` sobat same).
  * Multisarv (core) la app modules nahit → rikama.
  */
-export const ticketModules = (projectId: string) => (!projectId || projectId === MULTISARV_PROJECT.id ? [] : NAV);
+export const ticketModules = (projectId: string) =>
+  !projectId || projectId === MULTISARV_PROJECT.id ? [] : navFor(findTicketProject(projectId));
 
 export const moduleLabel = (m: string | null) => {
-  const n = m ? NAV.find((x) => x.menu === m) : undefined;
+  const n = m ? (NAV.find((x) => x.menu === m) ?? SOCIETY_NAV.find((x) => x.menu === m)) : undefined;
   return n ? t(n.label) : (m ?? "");
 };
 

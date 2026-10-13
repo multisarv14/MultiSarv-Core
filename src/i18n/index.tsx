@@ -2,6 +2,7 @@ import { Fragment, useEffect, useSyncExternalStore, type ReactNode } from "react
 
 import { LANG_CODES, type Lang } from "./define";
 import { access } from "./messages/access";
+import { chatGroups } from "./messages/chatGroups";
 import { common } from "./messages/common";
 import { coreAdmin } from "./messages/coreAdmin";
 import { dashboard } from "./messages/dashboard";
@@ -10,13 +11,14 @@ import { master } from "./messages/master";
 import { notifications } from "./messages/notifications";
 import { projectsMsgs } from "./messages/projects";
 import { shell } from "./messages/shell";
+import { society } from "./messages/society";
 import { tasks } from "./messages/tasks";
 import { ticketsMsgs } from "./messages/tickets";
 import { users } from "./messages/users";
 
 export type { Lang } from "./define";
 
-const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin };
+const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin, ...society, ...chatGroups };
 export type MsgKey = keyof typeof messages;
 export type Params = Record<string, string | number>;
 

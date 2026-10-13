@@ -1,5 +1,6 @@
-import { Bell, BellRing, CheckCheck, Inbox } from "lucide-react";
+import { Bell, BellRing, CheckCheck, Inbox, Ticket } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { markAllCoreRead, markCoreRead, watchCoreInbox, type CoreInboxItem } from "@/api/core";
@@ -11,11 +12,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "../ui/primitives";
 
 /**
- * Master panel cha bell — Super Admin ne Core Users na pathavlelya notices
- * (`admins/{uid}/inbox`) live. Project bell (NotificationBell) sarkhach.
+ * Master panel cha bell — Super Admin ne Core Users na pathavlelya notices ani
+ * ticket notifications (`admins/{uid}/inbox`) live. Project bell (NotificationBell) sarkhach.
  */
 export function CoreNotificationBell() {
   const me = useAdmin();
+  const navigate = useNavigate();
   const [items, setItems] = useState<CoreInboxItem[]>([]);
   const [open, setOpen] = useState(false);
   const [ring, setRing] = useState(false);
@@ -31,7 +33,13 @@ export function CoreNotificationBell() {
         if (fresh.length > 0) {
           setRing(true);
           setTimeout(() => setRing(false), 1000);
-          fresh.slice(0, 3).forEach((n) => toast(n.title, { description: n.body, icon: <BellRing className="size-4" /> }));
+          fresh.slice(0, 3).forEach((n) =>
+            toast(n.title, {
+              description: n.body.split("\n").slice(0, 2).join(" · "),
+              icon: n.type === "ticket" ? <Ticket className="size-4" /> : <BellRing className="size-4" />,
+              ...(n.link && { action: { label: t("bell.open"), onClick: () => openItem(n) } }),
+            }),
+          );
         }
       }
       seen.current = new Set(next.map((n) => n.id));
@@ -52,6 +60,15 @@ export function CoreNotificationBell() {
   }, [open]);
 
   const unread = items.filter((n) => !n.isRead);
+
+  /** Vachla + ticket asel tar ughda. */
+  function openItem(n: CoreInboxItem) {
+    if (!n.isRead) markCoreRead(me.uid, n.id).catch(() => {});
+    if (n.link) {
+      setOpen(false);
+      navigate(n.link);
+    }
+  }
 
   return (
     <div ref={box} className="relative">
@@ -89,10 +106,11 @@ export function CoreNotificationBell() {
             {items.map((n, i) => (
               <li key={n.id} className="animate-rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
                 <button
-                  onClick={() => !n.isRead && markCoreRead(me.uid, n.id).catch(() => {})}
+                  onClick={() => openItem(n)}
                   className={cn("flex w-full gap-3 px-4 py-3 text-left transition hover:bg-surface-2", !n.isRead && "bg-accent/5")}
                 >
                   <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.isRead ? "bg-transparent" : "bg-accent")} />
+                  {n.type === "ticket" && <Ticket className="mt-0.5 size-4 shrink-0 text-muted" />}
                   <span className="min-w-0 flex-1">
                     <span className={cn("block text-sm break-words", !n.isRead && "font-semibold")}>{n.title}</span>
                     <span className="block text-xs break-words whitespace-pre-line text-muted">{n.body}</span>

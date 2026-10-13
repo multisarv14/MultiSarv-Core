@@ -11,7 +11,8 @@
     "build:watch": "tsc --watch",
     "deploy": "firebase deploy --only functions,firestore:rules",
     "logs": "firebase functions:log",
-    "set-super-admin": "node scripts/set-super-admin.cjs"
+    "set-super-admin": "node scripts/set-super-admin.cjs",
+    "reset-push-tokens": "node scripts/reset-push-tokens.cjs"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "528484856001",
+    "project_id": "multisarv-core",
+    "storage_bucket": "multisarv-core.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:528484856001:android:d2c4dbc62c16df0f28a440",
+        "android_client_info": {
+          "package_name": "com.multisarv.core"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxD2CHQcI9V6Kdu2QVQ2qwauRg5BPJ6A4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

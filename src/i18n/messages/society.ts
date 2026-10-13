@@ -1,0 +1,160 @@
+import { defineMessages } from "../define";
+
+/** SocietySarv sarkhe projects (`/s/:projectId`) — shell ani sagle pages. */
+export const society = defineMessages({
+  // ── Nav ──
+  "soc.nav.residents": { en: "Residents", hi: "निवासी", mr: "सभासद", gu: "રહેવાસીઓ" },
+  "soc.nav.complaints": { en: "Complaints", hi: "शिकायतें", mr: "तक्रारी", gu: "ફરિયાદો" },
+  "soc.nav.visitors": { en: "Visitors", hi: "आगंतुक", mr: "अभ्यागत", gu: "મુલાકાતીઓ" },
+  "soc.nav.bills": { en: "Maintenance bills", hi: "मेंटेनेंस बिल", mr: "देखभाल बिले", gu: "મેન્ટેનન્સ બિલ" },
+  "soc.nav.finance": { en: "Expenses & income", hi: "खर्च और आय", mr: "खर्च व उत्पन्न", gu: "ખર્ચ અને આવક" },
+  "soc.nav.notices": { en: "Notices", hi: "सूचनाएँ", mr: "सूचना", gu: "સૂચનાઓ" },
+  "soc.nav.contacts": { en: "Emergency contacts", hi: "आपातकालीन संपर्क", mr: "आपत्कालीन संपर्क", gu: "ઇમરજન્સી સંપર્ક" },
+  "soc.nav.group.members": { en: "Society", hi: "सोसायटी", mr: "सोसायटी", gu: "સોસાયટી" },
+
+  // ── Shell ──
+  "soc.picker.label": { en: "Society", hi: "सोसायटी", mr: "सोसायटी", gu: "સોસાયટી" },
+  "soc.picker.current": { en: "Open", hi: "खुली", mr: "उघडी", gu: "ખુલ્લી" },
+  "soc.empty.title": { en: "No society registered yet", hi: "अभी कोई सोसायटी रजिस्टर नहीं", mr: "अजून एकही सोसायटी नोंदलेली नाही", gu: "હજી કોઈ સોસાયટી નોંધાયેલી નથી" },
+  "soc.empty.desc": {
+    en: "Societies appear here once a chairman registers one from the app.",
+    hi: "ऐप से चेयरमैन सोसायटी रजिस्टर करेगा तब यहाँ दिखेगी।",
+    mr: "ॲपमधून चेअरमनने सोसायटी नोंदवली की ती इथे दिसेल.",
+    gu: "ઍપમાંથી ચેરમેન સોસાયટી નોંધાવશે ત્યારે અહીં દેખાશે.",
+  },
+  "soc.queue.unpaid": { en: "Unpaid bills", hi: "बकाया बिल", mr: "न भरलेली बिले", gu: "બાકી બિલ" },
+  "soc.queue.inside": { en: "Visitors inside", hi: "अंदर आगंतुक", mr: "आत असलेले अभ्यागत", gu: "અંદર મુલાકાતીઓ" },
+
+  // ── Common ──
+  "soc.filter.all": { en: "All", hi: "सभी", mr: "सर्व", gu: "બધા" },
+  "soc.filter.allMonths": { en: "All months", hi: "सभी महीने", mr: "सर्व महिने", gu: "બધા મહિના" },
+  "soc.inactive": { en: "Inactive", hi: "निष्क्रिय", mr: "निष्क्रिय", gu: "નિષ્ક્રિય" },
+  "soc.col.society": { en: "Society", hi: "सोसायटी", mr: "सोसायटी", gu: "સોસાયટી" },
+  "soc.col.city": { en: "City", hi: "शहर", mr: "शहर", gu: "શહેર" },
+  "soc.col.flats": { en: "Flats", hi: "फ्लैट", mr: "सदनिका", gu: "ફ્લેટ" },
+  "soc.col.balance": { en: "Balance", hi: "शेष", mr: "शिल्लक", gu: "બેલેન્સ" },
+  "soc.col.flat": { en: "Flat", hi: "फ्लैट", mr: "सदनिका", gu: "ફ્લેટ" },
+  "soc.col.name": { en: "Name", hi: "नाम", mr: "नाव", gu: "નામ" },
+  "soc.col.tenant": { en: "Tenant", hi: "किरायेदार", mr: "भाडेकरू", gu: "ભાડૂઆત" },
+  "soc.col.role": { en: "Role", hi: "भूमिका", mr: "भूमिका", gu: "ભૂમિકા" },
+  "soc.col.phone": { en: "Mobile", hi: "मोबाइल", mr: "मोबाईल", gu: "મોબાઇલ" },
+  "soc.col.dues": { en: "Dues", hi: "बकाया", mr: "थकबाकी", gu: "બાકી" },
+  "soc.col.login": { en: "Login PIN", hi: "लॉगिन पिन", mr: "लॉगिन पिन", gu: "લૉગિન પિન" },
+  "soc.col.month": { en: "Month", hi: "महीना", mr: "महिना", gu: "મહિનો" },
+  "soc.col.total": { en: "Total", hi: "कुल", mr: "एकूण", gu: "કુલ" },
+  "soc.col.paid": { en: "Paid", hi: "भुगतान", mr: "भरले", gu: "ચૂકવ્યું" },
+  "soc.col.status": { en: "Status", hi: "स्थिति", mr: "स्थिती", gu: "સ્થિતિ" },
+  "soc.col.due": { en: "Due date", hi: "देय तिथि", mr: "देय तारीख", gu: "છેલ્લી તારીખ" },
+  "soc.col.receipt": { en: "Receipt", hi: "रसीद", mr: "पावती", gu: "રસીદ" },
+  "soc.col.date": { en: "Date", hi: "तारीख", mr: "तारीख", gu: "તારીખ" },
+  "soc.col.title": { en: "Title", hi: "शीर्षक", mr: "शीर्षक", gu: "શીર્ષક" },
+  "soc.col.category": { en: "Category", hi: "श्रेणी", mr: "प्रकार", gu: "શ્રેણી" },
+  "soc.col.amount": { en: "Amount", hi: "रकम", mr: "रक्कम", gu: "રકમ" },
+  "soc.col.mode": { en: "Mode", hi: "माध्यम", mr: "माध्यम", gu: "માધ્યમ" },
+  "soc.col.approvedBy": { en: "Approved by", hi: "स्वीकृतकर्ता", mr: "मंजूर करणारे", gu: "મંજૂર કરનાર" },
+  "soc.col.visitor": { en: "Visitor", hi: "आगंतुक", mr: "अभ्यागत", gu: "મુલાકાતી" },
+  "soc.col.purpose": { en: "Purpose", hi: "उद्देश्य", mr: "उद्देश", gu: "હેતુ" },
+  "soc.col.vehicle": { en: "Vehicle", hi: "वाहन", mr: "वाहन", gu: "વાહન" },
+  "soc.col.inOut": { en: "In / out", hi: "प्रवेश / निकास", mr: "आत / बाहेर", gu: "પ્રવેશ / બહાર" },
+  "soc.col.guard": { en: "Guard", hi: "गार्ड", mr: "रक्षक", gu: "ગાર્ડ" },
+  "soc.col.issue": { en: "Issue", hi: "समस्या", mr: "समस्या", gu: "સમસ્યા" },
+
+  // ── Status ──
+  "soc.bill.PAID": { en: "Paid", hi: "भुगतान हुआ", mr: "भरले", gu: "ચૂકવ્યું" },
+  "soc.bill.PARTIAL": { en: "Partial", hi: "आंशिक", mr: "अंशतः", gu: "આંશિક" },
+  "soc.bill.UNPAID": { en: "Unpaid", hi: "बकाया", mr: "न भरलेले", gu: "બાકી" },
+  "soc.ticket.OPEN": { en: "Open", hi: "खुली", mr: "उघडी", gu: "ખુલ્લી" },
+  "soc.ticket.IN_PROGRESS": { en: "In progress", hi: "प्रगति में", mr: "काम सुरू", gu: "પ્રગતિમાં" },
+  "soc.ticket.RESOLVED": { en: "Resolved", hi: "हल हुई", mr: "सोडवली", gu: "ઉકેલાઈ" },
+  "soc.visitor.INSIDE": { en: "Inside", hi: "अंदर", mr: "आत", gu: "અંદર" },
+  "soc.visitor.EXITED": { en: "Exited", hi: "बाहर गए", mr: "बाहेर गेले", gu: "બહાર ગયા" },
+  "soc.visitor.PRE_APPROVED": { en: "Pre-approved", hi: "पूर्व-स्वीकृत", mr: "आधी मंजूर", gu: "પૂર્વ-મંજૂર" },
+  "soc.visitor.REJECTED": { en: "Rejected", hi: "अस्वीकृत", mr: "नाकारले", gu: "નકારાયા" },
+
+  // ── Dashboard ──
+  "soc.dash.desc": { en: "Society overview", hi: "सोसायटी सारांश", mr: "सोसायटी आढावा", gu: "સોસાયટી સારાંશ" },
+  "soc.dash.profile": { en: "Society profile", hi: "सोसायटी प्रोफ़ाइल", mr: "सोसायटी माहिती", gu: "સોસાયટી પ્રોફાઇલ" },
+  "soc.dash.all": { en: "All societies ({n})", hi: "सभी सोसायटी ({n})", mr: "सर्व सोसायट्या ({n})", gu: "બધી સોસાયટી ({n})" },
+  "soc.stat.members": { en: "Members", hi: "सदस्य", mr: "सभासद", gu: "સભ્યો" },
+  "soc.stat.dues": { en: "Total dues", hi: "कुल बकाया", mr: "एकूण थकबाकी", gu: "કુલ બાકી" },
+  "soc.stat.openComplaints": { en: "Open complaints", hi: "खुली शिकायतें", mr: "उघड्या तक्रारी", gu: "ખુલ્લી ફરિયાદો" },
+  "soc.stat.balance": { en: "Cash + bank", hi: "नकद + बैंक", mr: "रोख + बँक", gu: "રોકડ + બેંક" },
+  "soc.field.code": { en: "Login code", hi: "लॉगिन कोड", mr: "लॉगिन कोड", gu: "લૉગિન કોડ" },
+  "soc.field.registration": { en: "Registration no.", hi: "पंजीकरण क्र.", mr: "नोंदणी क्र.", gu: "નોંધણી નં." },
+  "soc.field.wingsFlats": { en: "Wings / flats", hi: "विंग / फ्लैट", mr: "विंग / सदनिका", gu: "વિંગ / ફ્લેટ" },
+  "soc.field.cash": { en: "Cash balance", hi: "नकद शेष", mr: "रोख शिल्लक", gu: "રોકડ બેલેન્સ" },
+  "soc.field.bank": { en: "Bank balance", hi: "बैंक शेष", mr: "बँक शिल्लक", gu: "બેંક બેલેન્સ" },
+  "soc.field.contact": { en: "Contact", hi: "संपर्क", mr: "संपर्क", gu: "સંપર્ક" },
+  "soc.field.email": { en: "Email", hi: "ईमेल", mr: "ईमेल", gu: "ઇમેઇલ" },
+
+  // ── Residents ──
+  "soc.residents.desc": {
+    en: "Members, committee and staff of the selected society",
+    hi: "चुनी गई सोसायटी के सदस्य, कमेटी और स्टाफ़",
+    mr: "निवडलेल्या सोसायटीचे सभासद, समिती आणि कर्मचारी",
+    gu: "પસંદ કરેલી સોસાયટીના સભ્યો, કમિટી અને સ્ટાફ",
+  },
+  "soc.residents.search": { en: "Flat, name or mobile", hi: "फ्लैट, नाम या मोबाइल", mr: "सदनिका, नाव किंवा मोबाईल", gu: "ફ્લેટ, નામ અથવા મોબાઇલ" },
+  "soc.residents.empty": { en: "No residents found", hi: "कोई निवासी नहीं मिला", mr: "एकही सभासद सापडला नाही", gu: "કોઈ રહેવાસી મળ્યા નથી" },
+  "soc.group.committee": { en: "Committee", hi: "कमेटी", mr: "समिती", gu: "કમિટી" },
+  "soc.group.members": { en: "Residents", hi: "निवासी", mr: "सभासद", gu: "રહેવાસીઓ" },
+  "soc.group.staff": { en: "Staff", hi: "स्टाफ़", mr: "कर्मचारी", gu: "સ્ટાફ" },
+  "soc.pin.set": { en: "Set", hi: "सेट", mr: "सेट", gu: "સેટ" },
+  "soc.pin.notSet": { en: "Not set", hi: "सेट नहीं", mr: "सेट नाही", gu: "સેટ નથી" },
+  "soc.pin.reset": { en: "Reset PIN", hi: "पिन रीसेट", mr: "पिन रीसेट", gu: "પિન રીસેટ" },
+  "soc.pin.title": { en: "Set a new login PIN", hi: "नया लॉगिन पिन सेट करें", mr: "नवीन लॉगिन पिन सेट करा", gu: "નવો લૉગિન પિન સેટ કરો" },
+  "soc.pin.label": { en: "New PIN", hi: "नया पिन", mr: "नवीन पिन", gu: "નવો પિન" },
+  "soc.pin.hint": { en: "exactly 4 digits", hi: "ठीक 4 अंक", mr: "नेमके ४ अंक", gu: "બરાબર 4 અંક" },
+  "soc.pin.note": {
+    en: "The member logs in with their flat number and this PIN. Share it with them directly.",
+    hi: "सदस्य अपने फ्लैट नंबर और इस पिन से लॉगिन करेगा। पिन उन्हें सीधे बताएँ।",
+    mr: "सभासद आपला सदनिका क्रमांक आणि हा पिन वापरून लॉगिन करेल. पिन त्यांना थेट सांगा.",
+    gu: "સભ્ય પોતાના ફ્લેટ નંબર અને આ પિનથી લૉગિન કરશે. પિન તેમને સીધો જણાવો.",
+  },
+  "soc.pin.save": { en: "Save PIN", hi: "पिन सेव करें", mr: "पिन जतन करा", gu: "પિન સેવ કરો" },
+  "soc.pin.done": { en: "New PIN set for {flat}", hi: "{flat} के लिए नया पिन सेट हुआ", mr: "{flat} साठी नवीन पिन सेट झाला", gu: "{flat} માટે નવો પિન સેટ થયો" },
+
+  // ── Bills ──
+  "soc.bills.desc": { en: "Monthly maintenance bills and collections", hi: "मासिक मेंटेनेंस बिल और वसूली", mr: "मासिक देखभाल बिले आणि वसुली", gu: "માસિક મેન્ટેનન્સ બિલ અને વસૂલાત" },
+  "soc.bills.search": { en: "Flat, name or receipt", hi: "फ्लैट, नाम या रसीद", mr: "सदनिका, नाव किंवा पावती", gu: "ફ્લેટ, નામ અથવા રસીદ" },
+  "soc.bills.billed": { en: "Billed", hi: "बिल किया", mr: "बिल केलेले", gu: "બિલ કરેલું" },
+  "soc.bills.collected": { en: "Collected", hi: "वसूल", mr: "वसूल", gu: "વસૂલ" },
+  "soc.bills.outstanding": { en: "Outstanding", hi: "बकाया", mr: "थकबाकी", gu: "બાકી" },
+  "soc.bills.count": { en: "Bills", hi: "बिल", mr: "बिले", gu: "બિલ" },
+  "soc.bills.empty": { en: "No bills found", hi: "कोई बिल नहीं मिला", mr: "एकही बिल सापडले नाही", gu: "કોઈ બિલ મળ્યા નથી" },
+
+  // ── Finance ──
+  "soc.finance.desc": { en: "Society expenses and non-maintenance income", hi: "सोसायटी खर्च और अन्य आय", mr: "सोसायटी खर्च आणि इतर उत्पन्न", gu: "સોસાયટી ખર્ચ અને અન્ય આવક" },
+  "soc.finance.search": { en: "Title, vendor or payer", hi: "शीर्षक, विक्रेता या भुगतानकर्ता", mr: "शीर्षक, विक्रेता किंवा देणारा", gu: "શીર્ષક, વિક્રેતા અથવા ચૂકવનાર" },
+  "soc.finance.expenses": { en: "Expenses", hi: "खर्च", mr: "खर्च", gu: "ખર્ચ" },
+  "soc.finance.revenue": { en: "Other income", hi: "अन्य आय", mr: "इतर उत्पन्न", gu: "અન્ય આવક" },
+  "soc.finance.spent": { en: "Total expenses", hi: "कुल खर्च", mr: "एकूण खर्च", gu: "કુલ ખર્ચ" },
+  "soc.finance.earned": { en: "Other income", hi: "अन्य आय", mr: "इतर उत्पन्न", gu: "અન્ય આવક" },
+  "soc.finance.emptyExpenses": { en: "No expenses recorded", hi: "कोई खर्च दर्ज नहीं", mr: "एकही खर्च नोंदलेला नाही", gu: "કોઈ ખર્ચ નોંધાયો નથી" },
+  "soc.finance.emptyRevenue": { en: "No income recorded", hi: "कोई आय दर्ज नहीं", mr: "एकही उत्पन्न नोंदलेले नाही", gu: "કોઈ આવક નોંધાઈ નથી" },
+
+  // ── Visitors ──
+  "soc.visitors.desc": { en: "Gate entry log", hi: "गेट प्रवेश रजिस्टर", mr: "गेट प्रवेश नोंद", gu: "ગેટ પ્રવેશ રજિસ્ટર" },
+  "soc.visitors.search": { en: "Name, mobile, flat or vehicle", hi: "नाम, मोबाइल, फ्लैट या वाहन", mr: "नाव, मोबाईल, सदनिका किंवा वाहन", gu: "નામ, મોબાઇલ, ફ્લેટ અથવા વાહન" },
+  "soc.visitors.empty": { en: "No visitors found", hi: "कोई आगंतुक नहीं मिला", mr: "एकही अभ्यागत सापडला नाही", gu: "કોઈ મુલાકાતી મળ્યા નથી" },
+
+  // ── Notices ──
+  "soc.notices.desc": { en: "Notices published to residents", hi: "निवासियों के लिए सूचनाएँ", mr: "सभासदांसाठी प्रसिद्ध सूचना", gu: "રહેવાસીઓ માટે સૂચનાઓ" },
+  "soc.notices.pinned": { en: "Pinned", hi: "पिन किया", mr: "पिन केलेली", gu: "પિન કરેલી" },
+  "soc.notices.empty": { en: "No notices yet", hi: "अभी कोई सूचना नहीं", mr: "अजून एकही सूचना नाही", gu: "હજી કોઈ સૂચના નથી" },
+
+  // ── Complaints ──
+  "soc.complaints.desc": { en: "Resident complaints and their resolution", hi: "निवासियों की शिकायतें और समाधान", mr: "सभासदांच्या तक्रारी आणि निवारण", gu: "રહેવાસીઓની ફરિયાદો અને ઉકેલ" },
+  "soc.complaints.search": { en: "Flat, name or text", hi: "फ्लैट, नाम या विवरण", mr: "सदनिका, नाव किंवा मजकूर", gu: "ફ્લેટ, નામ અથવા વિગત" },
+  "soc.complaints.empty": { en: "No complaints found", hi: "कोई शिकायत नहीं मिली", mr: "एकही तक्रार सापडली नाही", gu: "કોઈ ફરિયાદ મળી નથી" },
+  "soc.complaints.update": { en: "Update", hi: "अपडेट", mr: "अपडेट", gu: "અપડેટ" },
+  "soc.complaints.updated": { en: "Complaint updated", hi: "शिकायत अपडेट हुई", mr: "तक्रार अपडेट झाली", gu: "ફરિયાદ અપડેટ થઈ" },
+  "soc.complaints.photo": { en: "Attachment", hi: "अटैचमेंट", mr: "जोडलेला फोटो", gu: "જોડાણ" },
+  "soc.complaints.notes": { en: "Resolution note", hi: "समाधान नोट", mr: "निवारण नोंद", gu: "ઉકેલ નોંધ" },
+  "soc.complaints.notesKeep": { en: "empty keeps the current note", hi: "खाली छोड़ें तो पुराना नोट रहेगा", mr: "रिकामे ठेवल्यास जुनी नोंद राहील", gu: "ખાલી રાખશો તો જૂની નોંધ રહેશે" },
+  "soc.complaints.notesPlaceholder": { en: "What was done (optional)", hi: "क्या किया गया (वैकल्पिक)", mr: "काय केले (ऐच्छिक)", gu: "શું કર્યું (વૈકલ્પિક)" },
+
+  // ── Contacts ──
+  "soc.contacts.desc": { en: "Numbers shown to residents in the app", hi: "ऐप में निवासियों को दिखने वाले नंबर", mr: "ॲपमध्ये सभासदांना दिसणारे नंबर", gu: "ઍપમાં રહેવાસીઓને દેખાતા નંબર" },
+  "soc.contacts.empty": { en: "No emergency contacts", hi: "कोई आपातकालीन संपर्क नहीं", mr: "एकही आपत्कालीन संपर्क नाही", gu: "કોઈ ઇમરજન્સી સંપર્ક નથી" },
+});

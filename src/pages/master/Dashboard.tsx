@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Banknote, Building2, Crown, FolderKanban, KeyRound, Lock, Scale, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Crown, FolderKanban, KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { getQueueCounts } from "@/api/admin";
+import { fetchProjectQueues, projectQueueItems } from "@/components/layout/projectQueues";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { CountUp, rise } from "@/components/ui/motion";
 import { StatCard } from "@/components/ui/data";
 import { Badge, Card, CardHeader, Skeleton } from "@/components/ui/primitives";
-import type { ProjectDef } from "@/config/projects";
+import { projectBase, type ProjectDef } from "@/config/projects";
 import { useProjectAuth } from "@/context/auth";
 import { useCompany } from "@/context/company";
 import { allows } from "@/context/project";
@@ -37,20 +37,16 @@ function ProjectRow({ project, index }: { project: ProjectDef; index: number }) 
   // Projects page ani project shell hich key vapartat — cache share.
   const { data, isLoading } = useQuery({
     queryKey: [project.id, "queues"],
-    queryFn: () => getQueueCounts(project),
+    queryFn: () => fetchProjectQueues(project),
     enabled: isAdmin,
     staleTime: 30_000,
   });
-  const queues = [
-    { icon: BadgeCheck, value: data?.kyc, to: "kyc", menu: "kyc" as const, label: "KYC" },
-    { icon: Scale, value: data?.disputes, to: "disputes", menu: "disputes" as const, label: t("nav.disputes") },
-    { icon: Banknote, value: data?.payouts, to: "payouts", menu: "payouts" as const, label: t("nav.payouts") },
-  ];
+  const queues = projectQueueItems(project, data);
 
   return (
     <li className="animate-rise" style={{ ["--accent" as string]: project.accent, ...rise(index + 4) }}>
       <div className="group flex flex-wrap items-center gap-4 rounded-xl px-3 py-3 transition hover:bg-surface-2/60">
-        <Link to={`/p/${project.id}`} className="flex min-w-48 flex-1 items-center gap-3">
+        <Link to={`${projectBase(project)}`} className="flex min-w-48 flex-1 items-center gap-3">
           <ProjectMark project={project} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold group-hover:text-accent">{project.name}</span>
@@ -63,7 +59,7 @@ function ProjectRow({ project, index }: { project: ProjectDef; index: number }) 
             return (
               <Link
                 key={q.to}
-                to={open ? `/p/${project.id}/${q.to}` : `/p/${project.id}`}
+                to={open ? `${projectBase(project)}/${q.to}` : `${projectBase(project)}`}
                 title={t("home.pendingQueue", { label: q.label })}
                 className="flex min-w-16 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs transition hover:border-accent/40"
               >

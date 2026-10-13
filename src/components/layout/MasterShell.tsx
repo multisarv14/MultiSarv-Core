@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { Avatar, Badge, Button, Spinner } from "../ui/primitives";
 import { ChatDock } from "../chat/ChatDock";
+import { CallLayer } from "../chat/calls";
 import { Backdrop } from "./Backdrop";
 import { CoreNotificationBell } from "./CoreNotificationBell";
 import { LanguageMenu } from "./LanguageMenu";
@@ -164,6 +165,7 @@ export function MasterShell() {
         </main>
       </div>
       <ChatDock />
+      <CallLayer />
     </div>
   );
 }

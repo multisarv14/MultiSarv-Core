@@ -25,7 +25,7 @@ import { toast } from "sonner";
 
 import { useRoles, type CoreRole } from "@/api/core";
 
-import { MENU_KEYS } from "@/components/layout/nav";
+import { navFor } from "@/components/layout/nav";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { CountUp, rise } from "@/components/ui/motion";
 import { PageHeader, StatCard } from "@/components/ui/data";
@@ -269,7 +269,7 @@ function AdminRow({
                 {p && <ProjectMark project={p} size="sm" />}
                 <span className="font-medium">{p?.name ?? id}</span>
                 <span className="text-muted tabular">
-                  {menus.length}/{MENU_KEYS.length}
+                  {menus.length}/{navFor(p).length}
                 </span>
               </span>
             );

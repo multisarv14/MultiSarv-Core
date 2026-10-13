@@ -106,10 +106,13 @@ type Active = {
  * Record → `stop()` File deto (voice message), `cancel()` takto. Mic permission
  * pahilya veli browser magto.
  */
-export function useRecorder() {
+export function useRecorder(onAutoStop?: (r: Recording) => void) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const media = useRef<Active | null>(null);
+  // Kamal vel zali ki recording haravu naye — caller la dya (pathvayla).
+  const auto = useRef(onAutoStop);
+  auto.current = onAutoStop;
 
   const cleanup = () => {
     const m = media.current;
@@ -144,7 +147,8 @@ export function useRecorder() {
       const duration = Math.max(1, Math.round((Date.now() - started) / 1000));
       const type = (rec.mimeType || mime || "audio/webm").split(";")[0];
       const out = m.cancel || !chunks.length ? null : { file: new File(chunks, `voice-${started}.${type === "audio/mp4" ? "m4a" : ext}`, { type }), duration };
-      m.resolve?.(out);
+      if (m.resolve) m.resolve(out);
+      else if (out) auto.current?.(out);
       cleanup();
     };
     media.current = m;
@@ -177,3 +181,5 @@ export function useRecorder() {
 }
 
 export const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+export const fileSize = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);

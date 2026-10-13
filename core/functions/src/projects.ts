@@ -18,6 +18,10 @@ export interface CoreProject {
   /** Firebase web config + service account jodla aahe. */
   connected: boolean;
   menus: readonly string[];
+  /** Panel che pages konte — NOAI sarkhe (marketplace) kinva SocietySarv sarkhe (society). */
+  template: ProjectTemplate;
+  /** Named Firestore database (SocietySarv: `societysarv-app-db`); nasel tar `(default)`. */
+  databaseId?: string;
   /** Built-in sathi secret. */
   key?: ReturnType<typeof defineSecret>;
   /** Dynamic key badalli ki navin Admin app. */
@@ -37,8 +41,29 @@ export const MARKETPLACE_MENUS = [
   "catalog",
 ] as const;
 
+/** SocietySarv structure che menus — panel cha `SOCIETY_NAV` (src/components/layout/nav.ts). */
+export const SOCIETY_MENUS = [
+  "dashboard",
+  "residents",
+  "bills",
+  "finance",
+  "visitors",
+  "notices",
+  "complaints",
+  "contacts",
+] as const;
+
+export type ProjectTemplate = "marketplace" | "society";
+export const TEMPLATES: readonly ProjectTemplate[] = ["marketplace", "society"];
+
+/** Project doc `type` → template. Juna / rikama = marketplace (NOAI sarkha). */
+export const templateOf = (v: unknown): ProjectTemplate => (v === "society" ? "society" : "marketplace");
+
+export const menusFor = (template: ProjectTemplate): readonly string[] =>
+  template === "society" ? SOCIETY_MENUS : MARKETPLACE_MENUS;
+
 const BUILT_IN: CoreProject[] = [
-  { id: "noai", name: "NOAI", builtIn: true, connected: true, key: defineSecret("PROJECT_KEY_NOAI"), menus: MARKETPLACE_MENUS },
+  { id: "noai", name: "NOAI", builtIn: true, connected: true, template: "marketplace", key: defineSecret("PROJECT_KEY_NOAI"), menus: MARKETPLACE_MENUS },
 ];
 
 /** Dynamic projects chya service account keys encrypt karnari master key. */
@@ -54,12 +79,15 @@ const db = () => getFirestore();
 export const isBuiltIn = (id: unknown) => BUILT_IN.some((p) => p.id === id);
 
 function fromDoc(id: string, d: FirebaseFirestore.DocumentData): CoreProject {
+  const template = templateOf(d.type);
   return {
     id,
     name: String(d.name ?? id),
     builtIn: false,
     connected: d.connected === true,
-    menus: MARKETPLACE_MENUS,
+    menus: menusFor(template),
+    template,
+    databaseId: typeof d.databaseId === "string" && d.databaseId ? d.databaseId : undefined,
     keyVersion: Number(d.keyVersion ?? 0),
   };
 }

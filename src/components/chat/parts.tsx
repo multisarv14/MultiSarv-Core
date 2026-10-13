@@ -1,44 +1,58 @@
-import { ArrowLeft, AudioLines, FileText, Loader2, Mic, Paperclip, Reply, Search, Send, Smile, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowLeft, AtSign, BellOff, Phone, Search, Users, Video } from "lucide-react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import {
   attachmentUrl,
-  CHAT_ACCEPT,
-  CHAT_MAX_BYTES,
-  chatFileOk,
+  CHAT_PAGE,
   chatIdOf,
+  deleteChatMessage,
+  FORWARD_MAX_MESSAGES,
   listChatUsers,
   markChatRead,
+  notifyModeOf,
+  reactChatMessage,
+  receiptStatus,
   sendChatMessage,
-  useChatMessages,
+  starChatMessages,
+  useChatDoc,
+  useChatGroup,
+  useChatMessagesPaged,
   useMyChats,
-  type ChatAttachment,
   type ChatMessage,
   type ChatSummary,
   type ChatUser,
+  type NotifyMode,
 } from "@/api/chat";
-import { Avatar, Badge, Button, Input, Skeleton, Spinner, Textarea } from "@/components/ui/primitives";
+import { Backdrop } from "@/components/layout/Backdrop";
+import { Avatar, Button, Input, Skeleton, Spinner } from "@/components/ui/primitives";
 import { t } from "@/i18n";
-import { ago, dateTime } from "@/lib/format";
+import { ago } from "@/lib/format";
 import { errorMessage } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 
-import { EmojiPicker } from "./EmojiPicker";
-import { dictationSupported, MAX_RECORD_SEC, mmss, recordingSupported, useDictation, useRecorder } from "./media";
+import { Bubble, clock, MessageMenu, quoteText, type MenuAction, type Receipt } from "./bubble";
+import { startCall, useCurrentCall } from "./calls";
+import { Composer, type Outgoing } from "./Composer";
+import { GroupAvatar, GroupInfo, NewGroupDialog } from "./groups";
+import { dayTitle, DeleteDialog, ForwardDialog, MessageInfoDialog, ReactionsDialog, SearchPanel, SelectionBar } from "./tools";
+
+export { AttachmentLink, MediaAttachment } from "./bubble";
 
 /**
  * Internal Chat che tukde — Chat page ani bottom dock (LinkedIn sarkha) donhi vapartat.
  */
-
-export const fileSize = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
-const clock = (d: Date | null) => (d ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d) : "");
 
 // ── Ughde chats (alert / unread sathi) ───────────────────────────────
 
 /** Konte chats sadhya screen var ughde ahet — tyanche toast / sound nako. */
 const openChats = new Map<string, number>();
 export const isChatOpen = (chatId: string) => (openChats.get(chatId) ?? 0) > 0 && document.visibilityState === "visible";
+
+/** Ughdya conversation la baherun — search ughda / message var ja (header, Group info). */
+const controllers = new Map<string, { search: () => void; jump: (id: string) => void }>();
+export const openChatSearch = (chatId: string) => controllers.get(chatId)?.search();
+export const jumpToMessage = (chatId: string, id: string) => controllers.get(chatId)?.jump(id);
 
 // ── Users (ekdach — page ani dock share) ─────────────────────────────
 
@@ -48,12 +62,30 @@ export const loadChatUsers = (fresh = false) => {
   return usersCache;
 };
 
-export interface ChatRow {
-  user: ChatUser;
-  chat?: ChatSummary;
+/** Konasobat chat — 1:1 (Core User) kinva group. */
+export type ChatPeer = { kind: "user"; user: ChatUser } | { kind: "group"; chatId: string };
+export const peerKey = (p: ChatPeer) => (p.kind === "user" ? p.user.uid : p.chatId);
+export const peerLink = (p: ChatPeer) =>
+  p.kind === "user" ? `/chat?with=${encodeURIComponent(p.user.uid)}` : `/chat?group=${encodeURIComponent(p.chatId)}`;
+
+export type ChatRow =
+  | { kind: "user"; key: string; user: ChatUser; chat?: ChatSummary }
+  | { kind: "group"; key: string; chat: ChatSummary };
+
+export const rowPeer = (r: ChatRow): ChatPeer => (r.kind === "user" ? { kind: "user", user: r.user } : { kind: "group", chatId: r.chat.id });
+
+/** Majhi group notification nivad (1:1 nehmi "all"). */
+export const notifyMode = (c: ChatSummary | undefined, me: string): NotifyMode => (c?.group ? notifyModeOf(c.group, me) : "all");
+export const isMuted = (c: ChatSummary | undefined, me: string) => notifyMode(c, me) === "off";
+
+/** Shevatcha message mala alert karava ka — "mentions" madhe fakt mention / majhya message la reply. */
+export function wantsAlert(c: ChatSummary, me: string) {
+  const mode = notifyMode(c, me);
+  if (mode === "off") return false;
+  return mode === "all" || c.lastMentions.includes(me) || c.lastReplyToBy === me;
 }
 
-/** Users + majhe chats — recent adhi, mag naav; unread count. */
+/** Users + groups — recent adhi, mag naav; unread count (alert nako asleele sodun). */
 export function useChatDirectory(me: string, enabled = true) {
   const [users, setUsers] = useState<ChatUser[] | null>(null);
   const chats = useMyChats(me);
@@ -73,13 +105,20 @@ export function useChatDirectory(me: string, enabled = true) {
   }, [enabled]);
 
   const rows = useMemo<ChatRow[]>(() => {
-    const byOther = new Map((chats ?? []).map((c) => [c.other, c]));
-    return (users ?? [])
-      .map((u) => ({ user: u, chat: byOther.get(u.uid) }))
-      .sort((a, b) => (b.chat?.updatedAt?.getTime() ?? 0) - (a.chat?.updatedAt?.getTime() ?? 0) || a.user.name.localeCompare(b.user.name));
+    const byOther = new Map((chats ?? []).filter((c) => !c.group).map((c) => [c.other, c]));
+    const people: ChatRow[] = (users ?? []).map((u) => ({ kind: "user", key: u.uid, user: u, chat: byOther.get(u.uid) }));
+    const groups: ChatRow[] = (chats ?? []).filter((c) => c.group).map((c) => ({ kind: "group", key: c.id, chat: c }));
+    const label = (r: ChatRow) => (r.kind === "user" ? r.user.name : r.chat.group!.name);
+    return [...groups, ...people].sort(
+      (a, b) => (b.chat?.updatedAt?.getTime() ?? 0) - (a.chat?.updatedAt?.getTime() ?? 0) || label(a).localeCompare(label(b)),
+    );
   }, [users, chats]);
 
-  const unread = (chats ?? []).filter((c) => c.unread).length;
+  const unread = (chats ?? []).filter((c) => {
+    if (!c.unread) return false;
+    const mode = notifyMode(c, me);
+    return mode === "all" || (mode === "mentions" && c.mentioned);
+  }).length;
   return { users, chats, rows, unread };
 }
 
@@ -88,6 +127,7 @@ export function useChatDirectory(me: string, enabled = true) {
 export function ChatList({
   me,
   rows,
+  users,
   loading,
   selected,
   onOpen,
@@ -95,105 +135,267 @@ export function ChatList({
 }: {
   me: string;
   rows: ChatRow[];
+  /** "New group" sathi Core Users. */
+  users: ChatUser[] | null;
   loading: boolean;
   selected?: string | null;
-  onOpen: (u: ChatUser) => void;
+  onOpen: (p: ChatPeer) => void;
   header?: ReactNode;
 }) {
   const [q, setQ] = useState("");
+  const [creating, setCreating] = useState(false);
   const term = q.trim().toLowerCase();
-  const list = term ? rows.filter((r) => r.user.name.toLowerCase().includes(term) || r.user.email.toLowerCase().includes(term)) : rows;
+  // Group naav kinva tyatla konihi member.
+  const list = term
+    ? rows.filter((r) =>
+        r.kind === "user"
+          ? r.user.name.toLowerCase().includes(term) || r.user.email.toLowerCase().includes(term)
+          : r.chat.group!.name.toLowerCase().includes(term) ||
+            r.chat.group!.members.some((m) => m !== me && (r.chat.group!.names[m] ?? "").toLowerCase().includes(term)),
+      )
+    : rows;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="space-y-2 border-b border-border p-3">
         {header}
-        <Input icon={<Search className="size-4" />} placeholder={t("chat.search")} value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Input icon={<Search className="size-4" />} placeholder={t("chat.searchChats")} value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <Button variant="secondary" size="icon" className="shrink-0" onClick={() => setCreating(true)} disabled={!users?.length} title={t("group.new")} aria-label={t("group.new")}>
+            <Users className="size-4" />
+          </Button>
+        </div>
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
         {loading ? (
           [0, 1, 2, 3].map((i) => <Skeleton key={i} className="m-1.5 h-12 rounded-xl" />)
         ) : list.length === 0 ? (
-          <li className="px-4 py-10 text-center text-xs text-muted">{t("chat.noUsers")}</li>
+          <li className="px-4 py-10 text-center text-xs text-muted">{term ? t("chat.searchNone") : t("chat.noUsers")}</li>
         ) : (
-          list.map(({ user: u, chat: c }) => (
-            <li key={u.uid}>
-              <button
-                type="button"
-                onClick={() => onOpen(u)}
-                className={cn("flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-surface-2", u.uid === selected && "bg-accent/10")}
-              >
-                <Avatar name={u.name || u.email} seed={u.uid} size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className={cn("truncate text-sm", c?.unread ? "font-semibold" : "font-medium")}>{u.name}</span>
-                    {c?.updatedAt && <span className="shrink-0 text-[10px] text-muted">{ago(c.updatedAt)}</span>}
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className={cn("truncate text-xs", c?.unread ? "text-text" : "text-muted")}>
-                      {c ? (c.lastBy === me ? `${t("chat.you")}: ` : "") + (c.lastText || (c.lastAttachment ? `📎 ${c.lastAttachment}` : "")) : (u.role ?? u.email)}
+          list.map((r) => {
+            const c = r.chat;
+            const quiet = !!c && !wantsAlert(c, me) && !c.mentioned;
+            const muted = isMuted(c, me);
+            // Search: group member match zala tar to dakhva.
+            const matched =
+              term && r.kind === "group" && !r.chat.group!.name.toLowerCase().includes(term)
+                ? r.chat.group!.members.filter((m) => m !== me && (r.chat.group!.names[m] ?? "").toLowerCase().includes(term)).map((m) => r.chat.group!.names[m])
+                : null;
+            const preview = matched
+              ? matched.join(", ")
+              : !c
+                ? r.kind === "user"
+                  ? (r.user.role ?? r.user.email)
+                  : ""
+                : (c.lastSystem ? "" : c.lastBy === me ? `${t("chat.you")}: ` : r.kind === "group" && c.lastByName ? `${c.lastByName}: ` : "") +
+                  (c.lastText || (c.lastAttachment ? `📎 ${c.lastAttachment}` : ""));
+            return (
+              <li key={r.key}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(rowPeer(r))}
+                  className={cn("flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-surface-2", r.key === selected && "bg-accent/10")}
+                >
+                  {r.kind === "user" ? (
+                    <Avatar name={r.user.name || r.user.email} seed={r.user.uid} size="sm" />
+                  ) : (
+                    <GroupAvatar photo={r.chat.group!.photo} seed={r.chat.id} size="sm" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className={cn("truncate text-sm", c?.unread ? "font-semibold" : "font-medium")}>
+                        {r.kind === "user" ? r.user.name : r.chat.group!.name}
+                      </span>
+                      {c?.updatedAt && <span className={cn("shrink-0 text-[10px]", c.unread && !quiet ? "font-semibold text-accent" : "text-muted")}>{ago(c.updatedAt)}</span>}
                     </span>
-                    {c?.unread && <span className="ml-auto size-2 shrink-0 rounded-full bg-accent" />}
+                    <span className="flex items-center gap-1.5">
+                      <span className={cn("min-w-0 flex-1 truncate text-xs", c?.unread && !quiet ? "text-text" : "text-muted")}>{preview}</span>
+                      {muted && <BellOff className="size-3 shrink-0 text-muted" aria-label={t("group.muted")} />}
+                      {c?.mentioned && (
+                        <span className="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg" title={t("chat.mentionedYou")}>
+                          <AtSign className="size-3" />
+                        </span>
+                      )}
+                      {c?.unread && (
+                        <span
+                          className={cn(
+                            "flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold tabular",
+                            quiet ? "bg-muted/30 text-text" : "bg-accent text-accent-fg",
+                          )}
+                        >
+                          {c.unreadCount > 99 ? "99+" : c.unreadCount}
+                        </span>
+                      )}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </li>
-          ))
+                </button>
+              </li>
+            );
+          })
         )}
       </ul>
+      {creating && users && (
+        <NewGroupDialog
+          me={me}
+          users={users}
+          onClose={() => setCreating(false)}
+          onCreated={(chatId) => {
+            setCreating(false);
+            onOpen({ kind: "group", chatId });
+          }}
+        />
+      )}
     </div>
   );
 }
 
 // ── Conversation ──────────────────────────────────────────────────────
 
+const peerChatId = (me: string, p: ChatPeer) => (p.kind === "user" ? chatIdOf(me, p.user.uid) : p.chatId);
+
+function SearchButton({ chatId }: { chatId: string }) {
+  return (
+    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => openChatSearch(chatId)} title={t("chat.searchIn")} aria-label={t("chat.searchIn")}>
+      <Search className="size-4" />
+    </Button>
+  );
+}
+
 export function ChatHeader({
-  other,
+  me,
+  peer,
   onBack,
   actions,
   backMobileOnly,
 }: {
-  other: ChatUser;
+  me: string;
+  peer: ChatPeer;
   onBack?: () => void;
   actions?: ReactNode;
   backMobileOnly?: boolean;
 }) {
+  const back = onBack && (
+    <Button variant="ghost" size="icon" className={cn("-ml-1 shrink-0", backMobileOnly && "md:hidden")} onClick={onBack} aria-label={t("act.close")}>
+      <ArrowLeft className="size-4" />
+    </Button>
+  );
+  if (peer.kind === "group") return <GroupHeader me={me} chatId={peer.chatId} back={back} actions={actions} />;
+  const other = peer.user;
   return (
     <header className="flex items-center gap-3 border-b border-border px-3 py-2.5">
-      {onBack && (
-        <Button variant="ghost" size="icon" className={cn("-ml-1 shrink-0", backMobileOnly && "md:hidden")} onClick={onBack} aria-label={t("act.close")}>
-          <ArrowLeft className="size-4" />
-        </Button>
-      )}
+      {back}
       <Avatar name={other.name || other.email} seed={other.uid} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{other.name}</p>
         <p className="truncate text-[11px] text-muted">{other.role ? `${other.role} · ${other.email}` : other.email}</p>
       </div>
+      <CallButtons me={me} peer={other} />
+      <SearchButton chatId={peerChatId(me, peer)} />
       {actions}
     </header>
   );
 }
 
-/** Messages + input. `header` nako asel tar (dock popup swatahcha header deto) `header={false}`. */
-export function Conversation({ me, other, onBack, header = true }: { me: string; other: ChatUser; onBack?: () => void; header?: boolean }) {
-  const chatId = chatIdOf(me, other.uid);
-  const messages = useChatMessages(chatId);
-  const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [reply, setReply] = useState<ChatMessage | null>(null);
-  const [emoji, setEmoji] = useState(false);
-  const [sending, setSending] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const input = useRef<HTMLTextAreaElement>(null);
-  const bottom = useRef<HTMLDivElement>(null);
-  const list = useRef<HTMLDivElement>(null);
-  const recorder = useRecorder();
-
-  // Bolla te text madhe (shevti, jaga sodun).
-  const dictation = useDictation(
-    (said) => said && setText((v) => (v && !/\s$/.test(v) ? `${v} ${said}` : v + said)),
-    (code) => toast.error(code === "not-allowed" || code === "service-not-allowed" ? t("chat.micBlocked") : t("chat.speechFailed")),
+/** 1:1 header — audio / video call (WhatsApp sarkha). Group madhe nahi. */
+function CallButtons({ me, peer }: { me: string; peer: ChatUser }) {
+  const call = useCurrentCall();
+  const busy = !!call && !call.ended;
+  return (
+    <>
+      <Button variant="ghost" size="icon" className="shrink-0" disabled={busy} onClick={() => startCall(me, { uid: peer.uid, name: peer.name }, "video")} title={t("call.startVideo")} aria-label={t("call.startVideo")}>
+        <Video className="size-4" />
+      </Button>
+      <Button variant="ghost" size="icon" className="shrink-0" disabled={busy} onClick={() => startCall(me, { uid: peer.uid, name: peer.name }, "audio")} title={t("call.startVoice")} aria-label={t("call.startVoice")}>
+        <Phone className="size-4" />
+      </Button>
+    </>
   );
+}
+
+/** Group header — click → Group info (WhatsApp sarkha). */
+function GroupHeader({ me, chatId, back, actions }: { me: string; chatId: string; back: ReactNode; actions?: ReactNode }) {
+  const chat = useChatGroup(chatId, me);
+  const [info, setInfo] = useState(false);
+  const g = chat ? chat.group! : null;
+  const names = g
+    ? g.members
+        .filter((m) => m !== me)
+        .map((m) => g.names[m] ?? "")
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+    : [];
+  return (
+    <header className="flex items-center gap-3 border-b border-border px-3 py-2.5">
+      {back}
+      <button type="button" onClick={() => g && setInfo(true)} disabled={!g} className="flex min-w-0 flex-1 items-center gap-3 text-left" title={t("group.info")}>
+        <GroupAvatar photo={g?.photo ?? null} seed={chatId} size="sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{g ? g.name : chat === false ? t("group.unavailable") : "…"}</span>
+          <span className="block truncate text-[11px] text-muted">{g ? [t("chat.you"), ...names].join(", ") : ""}</span>
+        </span>
+        {g && notifyModeOf(g, me) === "off" && <BellOff className="size-3.5 shrink-0 text-muted" aria-label={t("group.muted")} />}
+      </button>
+      {g && <SearchButton chatId={chatId} />}
+      {actions}
+      {info && chat && <GroupInfo me={me} chat={chat} onClose={() => setInfo(false)} />}
+    </header>
+  );
+}
+
+/** Messages + input. `header` nako asel tar (dock popup swatahcha header deto) `header={false}`. */
+export function Conversation({
+  me,
+  peer,
+  onBack,
+  header = true,
+  focusId,
+}: {
+  me: string;
+  peer: ChatPeer;
+  onBack?: () => void;
+  header?: boolean;
+  /** Notification (mention / reply) varun — ughadlyavar ha message dakhva. */
+  focusId?: string | null;
+}) {
+  const chatId = peerChatId(me, peer);
+  const [limit, setLimit] = useState(CHAT_PAGE);
+  const { messages, hasMore, loadingMore } = useChatMessagesPaged(chatId, me, limit);
+  // Chat doc — ✓✓, group members / settings, mi ajun member ahe ka.
+  const chat = useChatDoc(chatId, me);
+  const g = chat ? chat.group : null;
+  const left = peer.kind === "group" && chat === false;
+  const blocked = !!g?.onlyAdminsSend && !g.admins.includes(me);
+
+  const [reply, setReply] = useState<ChatMessage | null>(null);
+  const [selected, setSelected] = useState<string[] | null>(null);
+  const [search, setSearch] = useState(false);
+  const [menu, setMenu] = useState<{ m: ChatMessage; x: number; y: number } | null>(null);
+  const [forwardIds, setForwardIds] = useState<string[] | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [reactionsMsg, setReactionsMsg] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const list = useRef<HTMLDivElement>(null);
+  /** User khali ahe ka (juna history vachat nahi). */
+  const atBottom = useRef(true);
+  const lastSeen = useRef<string | null>(null);
+  /** "Load earlier" nantar scroll jaga tashich. */
+  const restore = useRef<number | null>(null);
+  const pendingJump = useRef<string | null>(focusId ?? null);
+  /** Ughadla tevha pahila na vachlela message ("N unread messages" resha). */
+  const [firstUnread, setFirstUnread] = useState<string | null | undefined>(undefined);
+
+  const names = useMemo<Record<string, string>>(
+    () => (peer.kind === "user" ? { [peer.user.uid]: peer.user.name } : { ...(g?.names ?? {}) }),
+    [peer, g?.names],
+  );
+  const mentionables = useMemo(
+    () => (g ? g.members.filter((u) => u !== me && g.names[u]).map((u) => ({ uid: u, name: g.names[u] })).sort((a, b) => a.name.localeCompare(b.name)) : undefined),
+    [g, me],
+  );
+  const byId = useMemo(() => new Map((messages ?? []).map((m) => [m.id, m])), [messages]);
 
   // Ha chat ughda — tyache alerts nako.
   useEffect(() => {
@@ -203,331 +405,335 @@ export function Conversation({ me, other, onBack, header = true }: { me: string;
     };
   }, [chatId]);
 
-  // Navin message aala ki khali scroll ani "vachla".
+  /**
+   * "Read" fakt user kharach pahat asel tar: ha conversation screen var ughda, tab disto ani
+   * window la focus (dusrya app / window madhe asel tar fakt delivered).
+   */
+  const markIfViewing = () => {
+    if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+    markChatRead(chatId).catch(() => {});
+  };
+
+  // Pahilya load la — konta message pasun na vachlele.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
-    if (messages?.length && document.visibilityState === "visible") markChatRead(chatId).catch(() => {});
-  }, [messages?.length, chatId]);
+    if (firstUnread !== undefined || !messages || chat === null) return;
+    const read = chat ? (chat.reads[me]?.getTime() ?? 0) : 0;
+    setFirstUnread(chat && chat.unread ? (messages.find((m) => m.by !== me && !m.system && (m.at?.getTime() ?? 0) > read)?.id ?? null) : null);
+  }, [messages, chat, me, firstUnread]);
 
-  const pick = (f: File | undefined) => {
-    if (fileInput.current) fileInput.current.value = "";
-    if (!f) return;
-    if (!chatFileOk(f)) return toast.error(t("chat.badType"));
-    if (f.size > CHAT_MAX_BYTES) return toast.error(t("chat.tooBig", { max: fileSize(CHAT_MAX_BYTES) }));
-    setFile(f);
+  // Navin message: khali asel kiva swatah pathavla tarach scroll; dusryacha asel tar "vachla".
+  useEffect(() => {
+    const last = messages?.[messages.length - 1];
+    if (!last || last.id === lastSeen.current) return;
+    const first = lastSeen.current === null;
+    lastSeen.current = last.id;
+    const el = list.current;
+    // Notification varun ughadla — tya message var (jump), khali nahi.
+    if (el && !(first && focusId) && (first || atBottom.current || last.by === me)) {
+      if (first && firstUnread) list.current?.querySelector(`[data-unread]`)?.scrollIntoView({ block: "start" });
+      else el.scrollTop = el.scrollHeight;
+    }
+    if (last.by !== me && !left) markIfViewing();
+  }, [messages, chatId, me, left, firstUnread, focusId]);
+
+  // Tab / window parat samor (focus) — tevhach "vachla" (blue ✓✓).
+  const unreadNow = !!chat && chat.unread;
+  useEffect(() => {
+    const on = () => unreadNow && !left && markIfViewing();
+    document.addEventListener("visibilitychange", on);
+    window.addEventListener("focus", on);
+    return () => {
+      document.removeEventListener("visibilitychange", on);
+      window.removeEventListener("focus", on);
+    };
+  }, [chatId, unreadNow, left]);
+
+  // Juna messages load zale — scroll jaga tashich; rahilela jump.
+  useLayoutEffect(() => {
+    if (loadingMore) return;
+    const el = list.current;
+    if (el && restore.current !== null) {
+      el.scrollTop = el.scrollHeight - restore.current;
+      restore.current = null;
+    }
+    if (pendingJump.current && messages) {
+      const id = pendingJump.current;
+      if (byId.has(id) || !hasMore) {
+        pendingJump.current = null;
+        requestAnimationFrame(() => jump(id));
+      } else {
+        loadMore();
+      }
+    }
+  });
+
+  const loadMore = () => {
+    if (loadingMore) return;
+    const el = list.current;
+    if (el) restore.current = el.scrollHeight - el.scrollTop;
+    setLimit((l) => l + CHAT_PAGE);
   };
 
-  /** Emoji cursor chya jagi. */
-  const insert = (e: string) => {
-    const el = input.current;
-    const at = el?.selectionStart ?? text.length;
-    const end = el?.selectionEnd ?? at;
-    setText(text.slice(0, at) + e + text.slice(end));
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(at + e.length, at + e.length);
-    });
+  /** Quote / search / starred var click — mool message kade scroll (juna asel tar load karun). */
+  const jump = (id: string) => {
+    const el = list.current?.querySelector<HTMLElement>(`[data-msg="${id}"]`);
+    if (!el) {
+      if (loadingMore) pendingJump.current = id;
+      else if (hasMore) {
+        pendingJump.current = id;
+        loadMore();
+      } else toast(t("chat.notLoaded"));
+      return;
+    }
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.classList.add("ring-2", "ring-accent/50");
+    setTimeout(() => el.classList.remove("ring-2", "ring-accent/50"), 1400);
   };
+  const jumpRef = useRef(jump);
+  jumpRef.current = jump;
+  useEffect(() => {
+    const c = { search: () => setSearch(true), jump: (id: string) => jumpRef.current(id) };
+    controllers.set(chatId, c);
+    return () => {
+      if (controllers.get(chatId) === c) controllers.delete(chatId);
+    };
+  }, [chatId]);
 
-  const deliver = async (body: string, f: File | null, duration?: number) => {
-    setSending(true);
+  const onSend = async ({ text, file, duration, mentions }: Outgoing) => {
     try {
-      await sendChatMessage(me, other.uid, body, f, { replyTo: reply?.id ?? null, duration });
+      await sendChatMessage(me, peer.kind === "user" ? { to: peer.user.uid } : { chatId }, text, file, { replyTo: reply?.id ?? null, duration, mentions });
       setReply(null);
       return true;
     } catch (err) {
       toast.error(errorMessage(err));
       return false;
-    } finally {
-      setSending(false);
     }
   };
 
-  const send = async (e?: FormEvent) => {
-    e?.preventDefault();
-    if (sending || (!text.trim() && !file)) return;
-    dictation.stop();
-    if (await deliver(text.trim(), file)) {
-      setText("");
-      setFile(null);
-    }
-  };
+  // ── ✓ / ✓✓ — pratyek recipient vegla (message var live) ──
+  const receiptOf = (m: ChatMessage): Receipt | null => (m.by !== me || m.system || m.call ? null : receiptStatus(m, chat));
 
-  const startRecording = async () => {
-    dictation.stop();
+  // ── Actions ──
+  const react = (m: ChatMessage, emoji: string | null) => reactChatMessage(chatId, m.id, emoji).catch((err) => toast.error(errorMessage(err)));
+
+  const copy = async (text: string) => {
     try {
-      await recorder.start();
+      await navigator.clipboard.writeText(text);
+      toast.success(t("chat.copied"));
     } catch {
-      toast.error(t("chat.micBlocked"));
+      toast.error(t("chat.copyFailed"));
     }
   };
 
-  const sendRecording = async () => {
-    const r = await recorder.stop();
-    if (!r) return;
-    if (r.file.size > CHAT_MAX_BYTES) return toast.error(t("chat.tooBig", { max: fileSize(CHAT_MAX_BYTES) }));
-    await deliver("", r.file, r.duration);
+  const share = async (m: ChatMessage) => {
+    try {
+      if (m.attachment) {
+        const url = await attachmentUrl(m.attachment.path);
+        const blob = await fetch(url).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))));
+        const file = new File([blob], m.attachment.name, { type: m.attachment.type });
+        if (navigator.canShare?.({ files: [file] })) return await navigator.share({ files: [file], text: m.text || undefined });
+      }
+      await navigator.share({ text: m.text || m.attachment?.name || "" });
+    } catch (err) {
+      if ((err as Error)?.name !== "AbortError") toast.error(t("chat.shareFailed"));
+    }
   };
 
-  /** Quote var click — mool message kade scroll. */
-  const jump = (id: string) => {
-    const el = list.current?.querySelector<HTMLElement>(`[data-msg="${id}"]`);
-    if (!el) return;
-    el.scrollIntoView({ block: "center", behavior: "smooth" });
-    el.classList.add("ring-2", "ring-accent/50");
-    setTimeout(() => el.classList.remove("ring-2", "ring-accent/50"), 1200);
+  const star = (ids: string[], starred: boolean) =>
+    starChatMessages(chatId, ids, starred)
+      .then(() => toast.success(starred ? t("chat.starred") : t("chat.unstarred")))
+      .catch((err) => toast.error(errorMessage(err)));
+
+  const onAction = (m: ChatMessage, a: MenuAction) => {
+    if (a === "reply") setReply(m);
+    else if (a === "copy") copy(m.text);
+    else if (a === "forward") setForwardIds([m.id]);
+    else if (a === "star") star([m.id], !m.starred);
+    else if (a === "select") setSelected([m.id]);
+    else if (a === "share") share(m);
+    else if (a === "info") setInfoMsg(m.id);
+    else if (a === "delete") setDeleting([m.id]);
   };
 
-  const replyTo = (m: ChatMessage) => {
-    setReply(m);
-    input.current?.focus();
-  };
+  const picked = (selected ?? []).map((id) => byId.get(id)).filter((m): m is ChatMessage => !!m);
+  const ordered = [...picked].sort((a, b) => (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0));
+  const toDelete = (deleting ?? []).map((id) => byId.get(id)).filter((m): m is ChatMessage => !!m);
+  const canDeleteForEveryone = toDelete.length > 0 && toDelete.every((m) => m.by === me && !m.deleted && !m.system);
 
-  const empty = !text.trim() && !file;
-
-  return (
-    <>
-      {header && <ChatHeader other={other} onBack={onBack} backMobileOnly />}
-
-      <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4">
-        {!messages ? (
-          <div className="flex h-full items-center justify-center">
-            <Spinner />
-          </div>
-        ) : messages.length === 0 ? (
-          <p className="py-10 text-center text-xs text-muted">{t("chat.empty", { name: other.name })}</p>
-        ) : (
-          messages.map((m) => <Bubble key={m.id} m={m} mine={m.by === me} me={me} onReply={() => replyTo(m)} onJump={jump} />)
-        )}
-        <div ref={bottom} />
-      </div>
-
-      <form onSubmit={send} className="relative border-t border-border p-2.5">
-        {reply && (
-          <div className="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-accent bg-surface-2/70 px-3 py-1.5 text-xs">
-            <Reply className="mt-0.5 size-3.5 shrink-0 text-accent" />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-accent">{reply.by === me ? t("chat.you") : reply.byName}</p>
-              <p className="truncate text-muted">{quoteText(reply)}</p>
-            </div>
-            <button type="button" onClick={() => setReply(null)} className="shrink-0 text-muted hover:text-text" aria-label={t("act.cancel")}>
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
-        {file && (
-          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface-2/60 px-3 py-1.5 text-xs">
-            <FileText className="size-3.5 shrink-0 text-muted" />
-            <span className="min-w-0 flex-1 truncate">{file.name}</span>
-            <span className="shrink-0 text-muted">{fileSize(file.size)}</span>
-            <button type="button" onClick={() => setFile(null)} className="shrink-0 text-muted hover:text-text" aria-label={t("act.cancel")}>
-              <X className="size-3.5" />
-            </button>
-          </div>
-        )}
-        {emoji && <EmojiPicker onPick={insert} onClose={() => setEmoji(false)} />}
-
-        {recorder.recording ? (
-          // Recording chalu — WhatsApp sarkha bar: cancel · vel · send.
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="icon" className="shrink-0 text-rose-500" onClick={recorder.cancel} title={t("chat.recordCancel")} aria-label={t("chat.recordCancel")}>
-              <Trash2 className="size-4" />
-            </Button>
-            <div className="flex h-9 flex-1 items-center gap-2 rounded-lg bg-rose-500/10 px-3 text-sm">
-              <span className="size-2.5 animate-pulse rounded-full bg-rose-500" />
-              <span className="font-medium tabular text-rose-600 dark:text-rose-400">{mmss(recorder.seconds)}</span>
-              <span className="truncate text-xs text-muted">{t("chat.recording", { max: mmss(MAX_RECORD_SEC) })}</span>
-            </div>
-            <Button type="button" variant="primary" size="icon" className="shrink-0" loading={sending} onClick={sendRecording} aria-label={t("chat.send")}>
-              {!sending && <Send className="size-4" />}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-end gap-1">
-            <input ref={fileInput} type="file" accept={CHAT_ACCEPT} className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
-            <Button type="button" variant="ghost" size="icon" className="shrink-0" title={t("chat.emoji")} aria-label={t("chat.emoji")} onClick={() => setEmoji((v) => !v)}>
-              <Smile className="size-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" className="shrink-0" title={t("chat.attach")} aria-label={t("chat.attach")} onClick={() => fileInput.current?.click()}>
-              <Paperclip className="size-4" />
-            </Button>
-            <div className="relative min-w-0 flex-1">
-              <Textarea
-                ref={input}
-                rows={1}
-                value={text}
-                maxLength={4000}
-                placeholder={dictation.listening ? dictation.interim || t("chat.listening") : t("chat.placeholder")}
-                className={cn("max-h-32 min-h-9 resize-none py-2", dictationSupported && "pr-9", dictation.listening && "ring-2 ring-rose-500/40")}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-              />
-              {dictationSupported && (
-                <button
-                  type="button"
-                  onClick={dictation.listening ? dictation.stop : dictation.start}
-                  title={dictation.listening ? t("chat.dictateStop") : t("chat.dictate")}
-                  aria-label={dictation.listening ? t("chat.dictateStop") : t("chat.dictate")}
-                  className={cn(
-                    "absolute right-1.5 bottom-1.5 flex size-6 items-center justify-center rounded-md transition",
-                    dictation.listening ? "animate-pulse bg-rose-500 text-white" : "text-muted hover:bg-surface-2 hover:text-text",
-                  )}
-                >
-                  <AudioLines className="size-3.5" />
-                </button>
-              )}
-            </div>
-            {empty && recordingSupported ? (
-              <Button type="button" variant="primary" size="icon" className="shrink-0" onClick={startRecording} title={t("chat.record")} aria-label={t("chat.record")}>
-                <Mic className="size-4" />
-              </Button>
-            ) : (
-              <Button type="submit" variant="primary" size="icon" className="shrink-0" loading={sending} disabled={empty} aria-label={t("chat.send")}>
-                {!sending && <Send className="size-4" />}
-              </Button>
-            )}
-          </div>
-        )}
-      </form>
-    </>
-  );
-}
-
-const quoteText = (m: { text: string; attachment: { name: string; type?: string } | string | null; audio?: boolean }) => {
-  if (m.text) return m.text;
-  const a = m.attachment;
-  const isAudio = "audio" in m ? m.audio : typeof a === "object" && !!a?.type?.startsWith("audio/");
-  if (isAudio) return `🎤 ${t("chat.voice")}`;
-  return a ? `📎 ${typeof a === "string" ? a : a.name}` : "";
-};
-
-function Bubble({ m, mine, me, onReply, onJump }: { m: ChatMessage; mine: boolean; me: string; onReply: () => void; onJump: (id: string) => void }) {
-  // Touch: ujvikade swipe = reply (WhatsApp sarkha).
-  const [dx, setDx] = useState(0);
-  const start = useRef<{ x: number; y: number } | null>(null);
-  const audio = m.attachment?.type.startsWith("audio/");
-
-  return (
-    <div
-      data-msg={m.id}
-      className={cn("group flex flex-col rounded-xl transition-shadow", mine ? "items-end" : "items-start")}
-      onPointerDown={(e) => e.pointerType !== "mouse" && (start.current = { x: e.clientX, y: e.clientY })}
-      onPointerMove={(e) => {
-        if (!start.current) return;
-        const x = e.clientX - start.current.x;
-        if (Math.abs(e.clientY - start.current.y) > 30) return (start.current = null), setDx(0);
-        setDx(Math.max(0, Math.min(x, 80)));
-      }}
-      onPointerUp={() => {
-        if (dx > 55) onReply();
-        start.current = null;
-        setDx(0);
-      }}
-      onPointerCancel={() => ((start.current = null), setDx(0))}
-    >
-      <p className="mb-0.5 px-1 text-[10px] text-muted" title={dateTime(m.at)}>
-        {mine ? t("chat.you") : m.byName} · {clock(m.at)}
-      </p>
-      <div className={cn("flex max-w-[85%] items-center gap-1", mine && "flex-row-reverse")} style={dx ? { transform: `translateX(${dx}px)` } : undefined}>
-        <div
-          className={cn(
-            "min-w-0 rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap",
-            mine ? "rounded-br-sm bg-accent text-accent-fg" : "rounded-bl-sm border border-border bg-surface-2/60",
-            audio && "min-w-56",
-          )}
-        >
-          {m.replyTo && (
-            <button
-              type="button"
-              onClick={() => onJump(m.replyTo!.id)}
-              className={cn("mb-1.5 block w-full rounded-lg border-l-4 px-2 py-1 text-left text-xs", mine ? "border-white/70 bg-white/15" : "border-accent bg-surface")}
-            >
-              <span className={cn("block font-semibold", !mine && "text-accent")}>{m.replyTo.by === me ? t("chat.you") : m.replyTo.byName}</span>
-              <span className="line-clamp-2 opacity-80">{quoteText(m.replyTo)}</span>
-            </button>
-          )}
-          {m.attachment && (audio ? <VoiceNote a={m.attachment} mine={mine} /> : <AttachmentLink a={m.attachment} mine={mine} />)}
-          {m.text && <p className={cn(m.attachment && "mt-1.5")}>{m.text}</p>}
-        </div>
-        <button
-          type="button"
-          onClick={onReply}
-          title={t("chat.reply")}
-          aria-label={t("chat.reply")}
-          className="shrink-0 rounded-full p-1 text-muted opacity-0 transition group-hover:opacity-100 hover:bg-surface-2 hover:text-text focus-visible:opacity-100 pointer-coarse:hidden"
-        >
-          <Reply className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Voice message — URL lagel tevha ghevun player. */
-function VoiceNote({ a, mine }: { a: ChatAttachment; mine: boolean }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    attachmentUrl(a.path)
-      .then((u) => alive && setUrl(u))
-      .catch(() => alive && setFailed(true));
-    return () => {
-      alive = false;
-    };
-  }, [a.path]);
-  return (
-    <div className="flex items-center gap-2">
-      <Mic className={cn("size-4 shrink-0", mine ? "text-accent-fg/80" : "text-accent")} />
-      {url ? (
-        <audio controls preload="metadata" src={url} className="h-9 w-full min-w-0 max-w-64" />
-      ) : failed ? (
-        <span className="text-xs opacity-80">{t("chat.voiceFailed")}</span>
-      ) : (
-        <Loader2 className="size-4 animate-spin" />
-      )}
-      {a.duration ? <span className="shrink-0 text-[10px] tabular opacity-80">{mmss(a.duration)}</span> : null}
-    </div>
-  );
-}
-
-/** Click kela ki URL ghevun navin tab madhe ughadto / download. */
-function AttachmentLink({ a, mine }: { a: ChatAttachment; mine: boolean }) {
-  const [busy, setBusy] = useState(false);
-  const openFile = async () => {
-    // Popup blocker talnyasathi tab adhi ughdun mag URL.
-    const tab = window.open("", "_blank");
+  const doDelete = async (everyone: boolean) => {
     setBusy(true);
     try {
-      const url = await attachmentUrl(a.path);
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
+      for (const m of toDelete) await deleteChatMessage(chatId, m.id, everyone);
+      setDeleting(null);
+      setSelected(null);
     } catch (err) {
-      tab?.close();
       toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }
   };
+
+  const forwardSelected = () => {
+    const ids = ordered.filter((m) => !m.deleted && !m.system).map((m) => m.id);
+    if (!ids.length) return;
+    if (ids.length > FORWARD_MAX_MESSAGES) return void toast.error(t("chat.forwardTooMany", { max: FORWARD_MAX_MESSAGES }));
+    setForwardIds(ids);
+  };
+
+  const copySelected = () => {
+    const live = ordered.filter((m) => !m.deleted && !m.system && m.text);
+    if (!live.length) return;
+    copy(
+      live.length === 1
+        ? live[0].text
+        : live.map((m) => `[${m.at ? `${dayTitle(m.at)}, ${clock(m.at)}` : ""}] ${m.by === me ? t("chat.you") : m.byName}: ${m.text}`).join("\n"),
+    );
+    setSelected(null);
+  };
+
+  const toggleSelect = (id: string) => setSelected((s) => (s ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id]));
+
+  const unreadCount = firstUnread && messages ? messages.slice(messages.findIndex((m) => m.id === firstUnread)).filter((m) => m.by !== me && !m.system).length : 0;
+  const infoM = infoMsg ? byId.get(infoMsg) : null;
+  const reactionsM = reactionsMsg ? byId.get(reactionsMsg) : null;
+
   return (
-    <button
-      type="button"
-      onClick={openFile}
-      className={cn(
-        "flex w-full min-w-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition",
-        mine ? "bg-white/15 hover:bg-white/25" : "bg-surface hover:bg-surface-2",
+    <>
+      {header && <ChatHeader me={me} peer={peer} onBack={onBack} backMobileOnly />}
+
+      <div className="relative isolate flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* Panel chi tich background (grid + aurora) — chat wallpaper, scroll hot nahi. */}
+        <Backdrop />
+        <div
+          ref={list}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            if (menu) setMenu(null);
+          }}
+          className="relative min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4"
+        >
+          {!messages ? (
+            <div className="flex h-full items-center justify-center">
+              <Spinner />
+            </div>
+          ) : messages.length === 0 ? (
+            <p className="py-10 text-center text-xs text-muted">
+              {peer.kind === "user" ? t("chat.empty", { name: peer.user.name }) : left ? t("group.notMember") : t("group.empty")}
+            </p>
+          ) : (
+            <>
+              {hasMore && (
+                <div className="text-center">
+                  <Button size="sm" variant="ghost" onClick={loadMore} loading={loadingMore}>
+                    {t("chat.loadEarlier")}
+                  </Button>
+                </div>
+              )}
+              {messages.map((m, i) => {
+                const prev = messages[i - 1];
+                const newDay = m.at && (!prev?.at || prev.at.toDateString() !== m.at.toDateString());
+                return (
+                  <Fragment key={m.id}>
+                    {newDay && (
+                      <div className="sticky top-0 z-[1] flex justify-center py-1">
+                        <span className="rounded-lg border border-border bg-surface px-2.5 py-0.5 text-[11px] font-medium text-muted shadow-sm">{dayTitle(m.at!)}</span>
+                      </div>
+                    )}
+                    {m.id === firstUnread && (
+                      <div data-unread className="flex items-center gap-3 py-1 text-[11px] font-semibold text-accent">
+                        <span className="h-px flex-1 bg-accent/30" />
+                        {t("chat.unreadN", { n: unreadCount })}
+                        <span className="h-px flex-1 bg-accent/30" />
+                      </div>
+                    )}
+                    <Bubble
+                      m={m}
+                      me={me}
+                      names={names}
+                      group={peer.kind === "group"}
+                      receipt={receiptOf(m)}
+                      selecting={!!selected}
+                      selected={!!selected?.includes(m.id)}
+                      onSelect={() => toggleSelect(m.id)}
+                      onReply={() => !left && !blocked && setReply(m)}
+                      onJump={jump}
+                      onMenu={(msg, x, y) => setMenu({ m: msg, x, y })}
+                      onReactions={() => setReactionsMsg(m.id)}
+                      onCallBack={peer.kind === "user" ? (type) => startCall(me, { uid: peer.user.uid, name: peer.user.name }, type) : undefined}
+                    />
+                  </Fragment>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {search && messages && (
+          <SearchPanel
+            messages={messages}
+            names={names}
+            me={me}
+            hasMore={hasMore}
+            onMore={loadMore}
+            onClose={() => setSearch(false)}
+            onPick={(id) => {
+              setSearch(false);
+              requestAnimationFrame(() => jump(id));
+            }}
+          />
+        )}
+      </div>
+
+      {selected ? (
+        <SelectionBar
+          count={picked.length}
+          allStarred={picked.length > 0 && picked.every((m) => m.starred)}
+          onCopy={copySelected}
+          onForward={forwardSelected}
+          onStar={() => {
+            const all = picked.every((m) => m.starred);
+            star(picked.filter((m) => !m.deleted && !m.system).map((m) => m.id), !all).then(() => setSelected(null));
+          }}
+          onDelete={() => setDeleting(picked.map((m) => m.id))}
+          onCancel={() => setSelected(null)}
+        />
+      ) : left ? (
+        <p className="border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.notMember")}</p>
+      ) : blocked ? (
+        <p className="border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.onlyAdminsCanSend")}</p>
+      ) : (
+        <Composer me={me} reply={reply} onCancelReply={() => setReply(null)} onSend={onSend} quote={quoteText} mentionables={mentionables} />
       )}
-    >
-      {busy ? <Loader2 className="size-4 shrink-0 animate-spin" /> : <FileText className="size-4 shrink-0" />}
-      <span className="min-w-0 flex-1 truncate font-medium">{a.name}</span>
-      <Badge tone={mine ? "neutral" : "accent"} className="shrink-0">
-        {fileSize(a.size)}
-      </Badge>
-    </button>
+
+      {menu && (
+        <MessageMenu
+          m={menu.m}
+          me={me}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onReact={(e) => react(menu.m, e)}
+          onAction={(a) => onAction(menu.m, a)}
+        />
+      )}
+      {forwardIds && (
+        <ForwardDialog
+          me={me}
+          chatId={chatId}
+          ids={forwardIds}
+          onClose={() => setForwardIds(null)}
+          onDone={() => {
+            setForwardIds(null);
+            setSelected(null);
+          }}
+        />
+      )}
+      {infoM && chat && <MessageInfoDialog m={infoM} chat={chat} names={names} onClose={() => setInfoMsg(null)} />}
+      {reactionsM && <ReactionsDialog m={reactionsM} me={me} names={names} onReact={(e) => react(reactionsM, e)} onClose={() => setReactionsMsg(null)} />}
+      {deleting && toDelete.length > 0 && (
+        <DeleteDialog count={toDelete.length} forEveryone={canDeleteForEveryone} busy={busy} onDelete={doDelete} onClose={() => setDeleting(null)} />
+      )}
+    </>
   );
 }

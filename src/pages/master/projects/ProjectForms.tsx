@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { Drawer } from "@/components/ui/overlay";
-import { Button, Textarea } from "@/components/ui/primitives";
+import { Button, Input, Label, Textarea } from "@/components/ui/primitives";
 import type { ProjectDef } from "@/config/projects";
 import { t } from "@/i18n";
 import { callCore, errorMessage } from "@/lib/firebase";
@@ -48,6 +48,7 @@ export function ConnectDrawer({ project, onClose }: { project: ProjectDef | null
   const [key, setKey] = useState<KeyInfo | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [databaseId, setDatabaseId] = useState("");
   const file = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,11 +56,15 @@ export function ConnectDrawer({ project, onClose }: { project: ProjectDef | null
     setConfigText("");
     setKey(null);
     setKeyError(null);
-  }, [project?.id]);
+    // SocietySarv cha data named DB madhe; NOAI sarkhe `(default)` (rikama).
+    setDatabaseId(project?.databaseId ?? (project?.template === "society" ? "societysarv-app-db" : ""));
+  }, [project?.id, project?.databaseId, project?.template]);
+
+  const dbValid = !databaseId.trim() || databaseId.trim() === "(default)" || /^[a-z][a-z0-9-]{3,62}$/.test(databaseId.trim());
 
   const config = parseWebConfig(configText);
   const mismatch = !!config && !!key && config.projectId !== key.projectId;
-  const ready = !!config && !!key && !mismatch;
+  const ready = !!config && !!key && !mismatch && dbValid;
 
   const readKey = async (f: File | undefined) => {
     setKeyError(null);
@@ -81,7 +86,7 @@ export function ConnectDrawer({ project, onClose }: { project: ProjectDef | null
     if (!project || !config || !key) return;
     setBusy(true);
     try {
-      await callCore("connectProject", { id: project.id, firebase: config, serviceAccount: key.raw });
+      await callCore("connectProject", { id: project.id, firebase: config, serviceAccount: key.raw, databaseId: databaseId.trim() });
       toast.success(t("projects.toast.connected", { name: project.name }));
       setKey(null);
       onClose();
@@ -120,6 +125,12 @@ export function ConnectDrawer({ project, onClose }: { project: ProjectDef | null
               <CheckCircle2 className="size-3.5" /> {t("projects.connect.configOk", { id: config.projectId })}
             </p>
           )}
+          <div className="mt-4">
+            <Label hint={dbValid ? t("projects.connect.databaseHint") : <span className="text-rose-500">{t("core.err.badDatabaseId")}</span>}>
+              {t("projects.connect.database")}
+            </Label>
+            <Input className="font-mono" value={databaseId} placeholder="(default)" onChange={(e) => setDatabaseId(e.target.value)} />
+          </div>
         </Step>
 
         <Step n={2} title={t("projects.connect.step2")} done={!!key && !mismatch}>

@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Banknote, LayoutDashboard, LayoutGrid, LayoutPanelTop, List, Lock, Plug, Plus, Scale } from "lucide-react";
+import { ArrowRight, LayoutDashboard, LayoutGrid, LayoutPanelTop, List, Lock, Plug, Plus } from "lucide-react";
 import { useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 
-import { getQueueCounts } from "@/api/admin";
-import { NAV } from "@/components/layout/nav";
+import { navFor } from "@/components/layout/nav";
+import { fetchProjectQueues, projectQueueItems } from "@/components/layout/projectQueues";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { rise } from "@/components/ui/motion";
 import { PageHeader } from "@/components/ui/data";
 import { Badge, Button, Card, Segmented, Skeleton } from "@/components/ui/primitives";
-import { type ProjectDef } from "@/config/projects";
+import { projectBase, type ProjectDef } from "@/config/projects";
 import { useProjectAuth } from "@/context/auth";
 import { allows } from "@/context/project";
 import { getProjects, MULTISARV_PROJECT } from "@/context/projects";
@@ -37,7 +37,7 @@ function useProjectState(project: ProjectDef) {
   // Project shell madhla `useQueueCounts` hyach key vaparto — cache share.
   const { data, isLoading } = useQuery({
     queryKey: [project.id, "queues"],
-    queryFn: () => getQueueCounts(project),
+    queryFn: () => fetchProjectQueues(project),
     enabled: isAdmin,
     staleTime: 30_000,
   });
@@ -54,16 +54,13 @@ function useProjectState(project: ProjectDef) {
     ),
   }[auth.status];
 
-  const queues = [
-    { label: "KYC", icon: BadgeCheck, value: data?.kyc, to: "kyc", menu: "kyc" as const },
-    { label: t("nav.disputes"), icon: Scale, value: data?.disputes, to: "disputes", menu: "disputes" as const },
-    { label: t("nav.payouts"), icon: Banknote, value: data?.payouts, to: "payouts", menu: "payouts" as const },
-  ];
-  const menuCount = menus.includes("*") ? NAV.length : NAV.filter((n) => allows(menus, n.menu)).length;
+  const queues = projectQueueItems(project, data);
+  const nav = navFor(project);
+  const menuCount = menus.includes("*") ? nav.length : nav.filter((n) => allows(menus, n.menu)).length;
   const accessText = isAdmin
     ? menus.includes("*")
       ? t("access.home.fullAccess")
-      : t("access.home.menuCount", { n: menuCount, total: NAV.length })
+      : t("access.home.menuCount", { n: menuCount, total: nav.length })
     : (project.firebase?.projectId ?? "—");
 
   return { auth, notConnected, isAdmin, menus, isLoading, status, queues, accessText };
@@ -111,7 +108,7 @@ export function ProjectCard({
             return (
               <Link
                 key={q.to}
-                to={open ? `/p/${project.id}/${q.to}` : `/p/${project.id}`}
+                to={open ? `${projectBase(project)}/${q.to}` : `${projectBase(project)}`}
                 className="rounded-xl border border-border bg-surface-2/50 p-2.5 transition hover:border-accent/40"
               >
                 {open || !isAdmin ? <q.icon className="size-3.5 text-muted" /> : <Lock className="size-3.5 text-muted/60" />}
@@ -137,7 +134,7 @@ export function ProjectCard({
             {onConnect ? t("projects.connect.cta") : t("projects.notConnected")}
           </Button>
         ) : (
-        <Link to={`/p/${project.id}`} className="mt-5 block">
+        <Link to={`${projectBase(project)}`} className="mt-5 block">
           <Button
             variant={isAdmin ? "primary" : "secondary"}
             className="w-full justify-center"
@@ -203,7 +200,7 @@ function ProjectRow({ project, index, onConnect }: { project: ProjectDef; index:
           return (
             <Link
               key={q.to}
-              to={open ? `/p/${project.id}/${q.to}` : `/p/${project.id}`}
+              to={open ? `${projectBase(project)}/${q.to}` : `${projectBase(project)}`}
               title={t("home.pendingQueue", { label: q.label })}
               className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-2/50 px-2.5 py-1.5 text-xs transition hover:border-accent/40"
             >
@@ -218,7 +215,7 @@ function ProjectRow({ project, index, onConnect }: { project: ProjectDef; index:
             {onConnect ? t("projects.connect.cta") : t("projects.notConnected")}
           </Button>
         ) : (
-          <Link to={`/p/${project.id}`}>
+          <Link to={`${projectBase(project)}`}>
             <Button
               size="sm"
               variant={isAdmin ? "primary" : "secondary"}

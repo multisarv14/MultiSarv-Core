@@ -15,6 +15,12 @@ service cloud.firestore {
       allow read: if isSuper() || (request.auth != null && request.auth.uid == uid);
       allow write: if false;
 
+      // Internal Chat → star kelele messages (chat nihay) — fakt swatah vachto; writes functions.
+      match /starred/{chatId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
       // Super Admin → Notifications — fakt swatahcha inbox; "vachla" (isRead) evdhach badal.
       match /inbox/{noticeId} {
         allow read: if request.auth != null && request.auth.uid == uid;
@@ -31,14 +37,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Internal Chat — fakt active Core Users, ani fakt tyanche swatahche chats
-    // (chatId = "uidA__uidB"). Writes fakt functions.
+    // Internal Chat — fakt active Core Users, ani fakt tyanche swatahche chats:
+    // 1:1 (chatId = "uidA__uidB") kinva group (chat doc che `members`). Writes fakt functions.
     function isCoreUser() {
       return request.auth != null
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.get('active', false) == true;
     }
     function inChat(chatId) {
-      return isCoreUser() && chatId.split('__').hasAny([request.auth.uid]);
+      return isCoreUser() && (chatId.split('__').hasAny([request.auth.uid])
+        || request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.get('members', []));
     }
     match /chats/{chatId} {
       allow get: if inChat(chatId);
@@ -49,6 +56,30 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if inChat(chatId);
         allow write: if false;
+      }
+    }
+
+    // 1:1 calls (WebRTC signalling) — fakt don participants vachtat; call doc functions lihitat.
+    // ICE candidates participant swatah lihito (fakt swatahche, call chalu asel tar).
+    function callOf(callId) {
+      return get(/databases/$(database)/documents/calls/$(callId)).data;
+    }
+    function inCall(c) {
+      return request.auth != null && (request.auth.uid == c.caller || request.auth.uid == c.callee);
+    }
+    match /calls/{callId} {
+      allow get, list: if inCall(resource.data);
+      allow write: if false;
+
+      match /candidates/{candidateId} {
+        allow read: if inCall(callOf(callId));
+        allow create: if isCoreUser() && inCall(callOf(callId))
+          && callOf(callId).active == true
+          && request.resource.data.keys().hasOnly(['from', 'c', 'at'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.c is map
+          && request.resource.data.c.size() <= 5;
+        allow update, delete: if false;
       }
     }
 

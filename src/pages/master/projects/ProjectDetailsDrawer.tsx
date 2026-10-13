@@ -4,7 +4,16 @@ import { toast } from "sonner";
 
 import { ConfirmDialog, Drawer } from "@/components/ui/overlay";
 import { Avatar, Badge, Button, Input, Label, Select, Textarea } from "@/components/ui/primitives";
-import { PROJECT_STATUSES, PROJECT_TYPES, type ProjectDef, type ProjectStatus, type ProjectType } from "@/config/projects";
+import {
+  PROJECT_STATUSES,
+  PROJECT_TEMPLATES,
+  PROJECT_TYPES,
+  templateOf,
+  type ProjectDef,
+  type ProjectStatus,
+  type ProjectTemplate,
+  type ProjectType,
+} from "@/config/projects";
 import { t } from "@/i18n";
 import { callCore, errorMessage } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
@@ -32,6 +41,8 @@ interface Form {
   description: string;
   status: ProjectStatus;
   projectType: ProjectType;
+  /** Fakt navin project veli — nantar badalta yet nahi (menus / access tyavar). */
+  template: ProjectTemplate;
   startDate: string;
   endDate: string;
   manager: string;
@@ -50,6 +61,7 @@ const fromProject = (p?: ProjectDef | null): Form => ({
   description: p?.description ?? "",
   status: p?.status ?? "active",
   projectType: p?.projectType ?? "marketplace",
+  template: templateOf(p),
   startDate: p?.startDate ?? "",
   endDate: p?.endDate ?? "",
   manager: p?.manager?.uid ?? "",
@@ -144,7 +156,7 @@ export function ProjectDetailsDrawer({
         team: f.team,
         accent: f.accent,
         ...(project?.builtIn ? {} : { region: f.region }),
-        ...(editing ? { vapidKey: f.vapidKey } : {}),
+        ...(editing ? { vapidKey: f.vapidKey } : { template: f.template }),
         ...(f.logo !== (project?.logo ?? null) ? { logo: f.logo } : {}),
       };
       await callCore(editing ? "updateProject" : "createProject", body);
@@ -247,6 +259,19 @@ export function ProjectDetailsDrawer({
                   {PROJECT_TYPES.map((s) => (
                     <option key={s} value={s}>
                       {projectTypeLabel(s)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field
+                label={t("projects.field.template")}
+                hint={editing ? t("projects.field.templateLocked") : t("projects.field.templateHint")}
+                className="sm:col-span-2"
+              >
+                <Select value={f.template} disabled={editing} onChange={(e) => set("template", e.target.value as ProjectTemplate)}>
+                  {PROJECT_TEMPLATES.map((s) => (
+                    <option key={s} value={s}>
+                      {t(`projects.template.${s}`)}
                     </option>
                   ))}
                 </Select>

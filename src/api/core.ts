@@ -83,6 +83,9 @@ export interface CoreInboxItem {
   byName: string;
   isRead: boolean;
   createdAt: Date | null;
+  /** Ticket notification — click var ticket ughadto. */
+  type: "notice" | "ticket";
+  link: string | null;
 }
 
 /** Core User cha inbox (`admins/{uid}/inbox`) — master panel cha bell. */
@@ -100,6 +103,9 @@ export function watchCoreInbox(uid: string, cb: (items: CoreInboxItem[]) => void
             byName: String(x.byName ?? ""),
             isRead: x.isRead === true,
             createdAt: toDate(x.createdAt),
+            type: x.type === "ticket" ? "ticket" : "notice",
+            // Fakt panel madhla path.
+            link: typeof x.link === "string" && x.link.startsWith("/") && !x.link.startsWith("//") ? x.link : null,
           };
         }),
       ),

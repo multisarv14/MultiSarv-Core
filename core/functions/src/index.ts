@@ -33,6 +33,8 @@ export * from "./tickets.js";
 export * from "./roles.js";
 export * from "./notices.js";
 export * from "./chat.js";
+export * from "./push.js";
+export * from "./calls.js";
 
 /** Admin / project callables — project keys (custom token, revoke) lagtat. */
 const callable = <T>(handler: (req: CallableRequest<T>) => Promise<unknown>) => baseCallable<T>(handler, PROJECT_SECRETS);
@@ -78,6 +80,9 @@ async function syncProject(project: CoreProject, uid: string, menus: string[] | 
     await pAuth.revokeRefreshTokens(target).catch((e: { code?: string }) => {
       if (e.code !== "auth/user-not-found") throw e;
     });
+    // `users/{uid}` (admin alerts) fakt NOAI structure madhe. SocietySarv sarkhya project cha
+    // `(default)` DB dusrya app cha asu shakto — tithe kahich lihu naye.
+    if (project.template !== "marketplace") return;
     const ref = getFirestore(pAuth.app).collection("users").doc(target);
     if ((await ref.get()).exists) {
       await ref.set(

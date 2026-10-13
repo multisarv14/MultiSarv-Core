@@ -112,6 +112,21 @@ Mag Module Access madhe admins la tya project che menus dya. Project che pages t
 backend (NOAI sarkhe functions — `requireAdmin(req, "<menu>")`, ani rules) tyachya repo madhun deploy hoto.
 Tickets chya Project dropdown madhe **Multisarv** (master panel) ani sagle projects apoaap distat.
 
+### SocietySarv sarkha (society management) project
+
+Add project madhe **App structure → Society management** nivda (nantar badalta yet nahi). Pages `/s/<id>`
+khali yetat: Dashboard (sagle societies), Residents (PIN reset), Complaints (status badal), Visitors,
+Maintenance bills, Expenses & income, Notices, Emergency contacts. Code `src/pages/society/`, data `src/api/society.ts`.
+
+1. `multisarv-mobileapps` madhe **Web app** register kara (sadhya fakt Android aahe) — tyacha config Connect madhe.
+2. Connect madhe **Firestore database ID** = `societysarv-app-db` (default bharlela asto).
+3. Service account = `multisarv-mobileapps` chi key. Hi key tya project madhlya **sagle** apps la access dete.
+4. `core.multisarv.com` → `multisarv-mobileapps` → Authentication → Authorized domains.
+
+SocietySarv la Cloud Functions nahit — panel app sarkhech thet Firestore la lihito (fakt complaint
+`status`/`resolutionNotes` ani resident `pin`). Core `syncProject` society projects madhe `users` doc lihit nahi.
+SocietySarv backend `deploy.sh` madhe nahi — tyache rules `SocietySarv` repo madhunch deploy kara.
+
 **Built-in (code madhe, NOAI sarkha):** `src/config/projects.ts` → `BUILT_IN_PROJECTS`, `.env.local` madhe
 `VITE_KEY_*`, ani `core/functions/src/projects.ts` → `BUILT_IN` + `PROJECT_KEY_<ID>` secret.
 

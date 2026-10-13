@@ -10,6 +10,18 @@ import { callCore, core } from "./firebase";
 const SW_URL = "/firebase-messaging-sw.js";
 const SCOPE = "/core-push/";
 const TOKEN_KEY = "ms-core-push-token";
+const DEVICE_KEY = "ms-core-push-device";
+
+/** Ya browser cha sthir id — server var pratyek device chi vegli entry (mobile cha token pusat nahi). */
+export function deviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) localStorage.setItem(DEVICE_KEY, (id = `web-${crypto.randomUUID()}`));
+    return id;
+  } catch {
+    return undefined; // private mode — server token varun id banavto
+  }
+}
 
 export type CorePushState = "unsupported" | "denied" | "default" | "granted";
 
@@ -33,7 +45,7 @@ export async function enableCorePush(fresh = false): Promise<CorePushState> {
   const messaging = getMessaging(core().app);
   if (fresh) await deleteToken(messaging).catch(() => {});
   const token = await getToken(messaging, { serviceWorkerRegistration: registration, vapidKey });
-  await callCore("registerCorePush", { token });
+  await callCore("registerCorePush", { token, deviceId: deviceId(), platform: "web" });
   try {
     localStorage.setItem(TOKEN_KEY, token);
   } catch {
@@ -80,7 +92,7 @@ export async function dropCorePush() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return;
     localStorage.removeItem(TOKEN_KEY);
-    await callCore("registerCorePush", { token, remove: true });
+    await callCore("registerCorePush", { token, remove: true, deviceId: deviceId(), platform: "web" });
   } catch {
     /* offline — server kharab token nantar kadhto */
   }

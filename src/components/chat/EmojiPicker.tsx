@@ -33,7 +33,7 @@ const GROUPS: { key: MsgKey; icon: string; list: string }[] = [
 ];
 
 /** Input chya var popover — click kela ki emoji text madhe. */
-export function EmojiPicker({ onPick, onClose }: { onPick: (emoji: string) => void; onClose: () => void }) {
+export function EmojiPicker({ onPick, onClose, placement = "above" }: { onPick: (emoji: string) => void; onClose: () => void; placement?: "above" | "below" }) {
   const [tab, setTab] = useState(0);
   const box = useRef<HTMLDivElement>(null);
 
@@ -52,7 +52,13 @@ export function EmojiPicker({ onPick, onClose }: { onPick: (emoji: string) => vo
 
   const g = GROUPS[tab];
   return (
-    <div ref={box} className="animate-pop absolute bottom-full left-0 z-20 mb-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-pop">
+    <div
+      ref={box}
+      className={cn(
+        "animate-pop absolute left-0 z-20 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-pop",
+        placement === "above" ? "bottom-full mb-2" : "top-full mt-1",
+      )}
+    >
       <div className="flex border-b border-border px-1">
         {GROUPS.map((x, i) => (
           <button

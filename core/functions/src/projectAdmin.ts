@@ -1,16 +1,18 @@
 /**
- * Super admin: navin project (NOAI type) add karne, Firebase la connect karne,
+ * Super admin: navin project (NOAI kinva SocietySarv type) add karne, Firebase la connect karne,
  * mahiti badalne, kadhne. Service account key encrypt karun `projectKeys` madhe —
  * Firestore rules madhe client la kahich access nahi.
  */
 import { deleteApp, getApps } from "firebase-admin/app";
 
-import { authFromKey, encryptKey, isBuiltIn, KEYS_SECRET, MULTISARV_ID } from "./projects.js";
+import { authFromKey, encryptKey, isBuiltIn, KEYS_SECRET, MULTISARV_ID, TEMPLATES, type ProjectTemplate } from "./projects.js";
 import { audit, callable, db, fail, now, requireSuper, str } from "./shared.js";
 
 const ID = /^[a-z][a-z0-9-]{1,29}$/;
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 const REGIONS = ["asia-south1", "asia-south2", "us-central1", "europe-west1", "asia-southeast1"];
+/** Firestore database id — `(default)` kinva named (`societysarv-app-db`). */
+const DATABASE_ID = /^[a-z][a-z0-9-]{3,62}$/;
 
 const ref = (id: string) => db.collection("projects").doc(id);
 
@@ -89,16 +91,21 @@ async function dynamicProject(id: unknown) {
   return { id: pid, data: snap.data()! };
 }
 
-export const createProject = callable<Details & { id?: string }>(
+export const createProject = callable<Details & { id?: string; template?: string }>(
   async (req) => {
     const by = await requireSuper(req);
     const id = str(req.data.id, "badProjectId", 2, 30).toLowerCase();
     if (!ID.test(id)) fail("invalid-argument", "badProjectId");
     if (id === MULTISARV_ID || isBuiltIn(id) || (await ref(id).get()).exists) fail("already-exists", "projectExists");
-    const m = await details(req.data, true);
+    if (req.data.template !== undefined && !TEMPLATES.includes(req.data.template as ProjectTemplate)) {
+      fail("invalid-argument", "badTemplate");
+    }
+    const { template, ...rest } = req.data;
+    const m = await details(rest, true);
     await ref(id).set({
       ...m,
-      type: "marketplace",
+      // Template nantar badalta yet nahi — menus / access tyavar.
+      type: (template as ProjectTemplate | undefined) ?? "marketplace",
       firebase: null,
       connected: false,
       createdAt: now(),
@@ -141,7 +148,12 @@ const WEB_KEYS = ["apiKey", "authDomain", "projectId", "storageBucket", "messagi
  * Firebase web config + service account JSON. Donhi ekach Firebase project che
  * aahet ka, ani key ne kharach login token banto ka he tapasun mag save.
  */
-export const connectProject = callable<{ id?: string; firebase?: Record<string, unknown>; serviceAccount?: string }>(
+export const connectProject = callable<{
+  id?: string;
+  firebase?: Record<string, unknown>;
+  serviceAccount?: string;
+  databaseId?: string;
+}>(
   async (req) => {
     const by = await requireSuper(req);
     const { id, data } = await dynamicProject(req.data.id);
@@ -150,6 +162,10 @@ export const connectProject = callable<{ id?: string; firebase?: Record<string, 
     const firebase: Record<string, string> = {};
     for (const k of WEB_KEYS) if (typeof raw[k] === "string" && raw[k]) firebase[k] = String(raw[k]).trim();
     if (!firebase.apiKey || !firebase.projectId || !firebase.appId) fail("invalid-argument", "badWebConfig");
+
+    const dbRaw = typeof req.data.databaseId === "string" ? req.data.databaseId.trim() : "";
+    if (dbRaw && dbRaw !== "(default)" && !DATABASE_ID.test(dbRaw)) fail("invalid-argument", "badDatabaseId");
+    const databaseId = dbRaw && dbRaw !== "(default)" ? dbRaw : null;
 
     let sa: ServiceAccount;
     try {
@@ -178,7 +194,7 @@ export const connectProject = callable<{ id?: string; firebase?: Record<string, 
 
     const keyVersion = Date.now();
     await db.collection("projectKeys").doc(id).set({ enc: encryptKey(JSON.stringify(sa)), clientEmail: sa.client_email, keyVersion });
-    await ref(id).update({ firebase, connected: true, keyVersion, connectedAt: now(), connectedBy: by.uid, updatedAt: now() });
+    await ref(id).update({ firebase, databaseId, connected: true, keyVersion, connectedAt: now(), connectedBy: by.uid, updatedAt: now() });
     await audit(by, "projectConnect", { uid: id, email: String(data.name) }, { firebaseProject: sa.project_id });
     return { ok: true, projectId: sa.project_id };
   },

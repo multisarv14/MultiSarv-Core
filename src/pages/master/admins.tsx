@@ -2,7 +2,7 @@ import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestor
 import { Check, Ticket, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { MENU_KEYS, NAV, type MenuKey } from "@/components/layout/nav";
+import { navFor, type MenuKey } from "@/components/layout/nav";
 import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { Toggle } from "@/components/ui/primitives";
 import { useProjects } from "@/context/projects";
@@ -80,14 +80,17 @@ export function AccessMatrix({ value, onChange }: { value: Access; onChange: (a:
     if (!menus.length) delete next[id];
     onChange(next);
   };
-  const setAll = (id: string, all: boolean) => onChange({ ...value, [id]: all ? [...MENU_KEYS] : ["dashboard"] });
   const projects = useProjects();
+  // Pratyek project che menus tyachya template pramane (NOAI / SocietySarv).
+  const keysOf = (id: string) => navFor(projects.find((p) => p.id === id)).map((n) => n.menu);
+  const setAll = (id: string, all: boolean) => onChange({ ...value, [id]: all ? keysOf(id) : ["dashboard"] });
 
   return (
     <div className="space-y-3">
       {projects.map((p) => {
         const menus = value[p.id];
         const on = !!menus;
+        const nav = navFor(p);
         return (
           <div
             key={p.id}
@@ -99,23 +102,23 @@ export function AccessMatrix({ value, onChange }: { value: Access; onChange: (a:
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{p.name}</p>
                 <p className="text-[11px] text-muted">
-                  {on ? t("access.home.menuCount", { n: menus.length, total: MENU_KEYS.length }) : t("access.editor.noAccess")}
+                  {on ? t("access.home.menuCount", { n: menus.length, total: nav.length }) : t("access.editor.noAccess")}
                 </p>
               </div>
               {on && (
                 <button
                   type="button"
                   className="text-[11px] font-medium text-accent hover:underline"
-                  onClick={() => setAll(p.id, menus.length !== MENU_KEYS.length)}
+                  onClick={() => setAll(p.id, menus.length !== nav.length)}
                 >
-                  {menus.length === MENU_KEYS.length ? t("access.editor.selectNone") : t("access.editor.selectAll")}
+                  {menus.length === nav.length ? t("access.editor.selectNone") : t("access.editor.selectAll")}
                 </button>
               )}
               <Toggle checked={on} onChange={(v) => toggleProject(p.id, v)} />
             </div>
             {on && (
               <div className="animate-fade grid grid-cols-2 gap-2 border-t border-border bg-surface-2/40 p-3 sm:grid-cols-3">
-                {NAV.map((n) => {
+                {nav.map((n) => {
                   const checked = menus.includes(n.menu);
                   return (
                     <button

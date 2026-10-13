@@ -287,6 +287,7 @@ export const notifications = defineMessages({
 
   // ── Bell ──
   "bell.title": { en: "Notifications", hi: "नोटिफ़िकेशन", mr: "नोटिफिकेशन", gu: "નોટિફિકેશન" },
+  "bell.open": { en: "Open", hi: "खोलें", mr: "उघडा", gu: "ખોલો" },
   "bell.markAll": { en: "Mark all read", hi: "सब पढ़ा हुआ करें", mr: "सर्व वाचले म्हणून", gu: "બધું વાંચ્યું કરો" },
   "bell.empty": { en: "You're all caught up", hi: "कोई नया नोटिफ़िकेशन नहीं", mr: "नवीन नोटिफिकेशन नाही", gu: "કોઈ નવું નોટિફિકેશન નથી" },
   "bell.emptyHint": {

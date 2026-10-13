@@ -3,10 +3,12 @@ import { useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
-import { addTicketComment, KIND_META, useTicket, useTicketComments, type TicketComment, type TicketKind } from "@/api/tickets";
+import { addTicketComment, KIND_META, useTicket, useTicketComments, useTicketPeople, type TicketComment, type TicketKind } from "@/api/tickets";
+import { MentionText, MentionTextarea, mentionsIn } from "@/components/MentionTextarea";
 import { rise } from "@/components/ui/motion";
 import { ErrorState } from "@/components/ui/data";
-import { Avatar, Button, Card, CardHeader, EmptyState, KV, Skeleton, Textarea } from "@/components/ui/primitives";
+import { Avatar, Button, Card, CardHeader, EmptyState, KV, Skeleton } from "@/components/ui/primitives";
+import { useAdmin } from "@/context/session";
 import { t } from "@/i18n";
 import { ago, dateTime } from "@/lib/format";
 import { errorMessage } from "@/lib/firebase";
@@ -26,7 +28,7 @@ import {
 } from "./shared";
 
 /** Comments / Updates thread madhli ek nond. */
-function Entry({ c, index }: { c: TicketComment; index: number }) {
+function Entry({ c, index, me }: { c: TicketComment; index: number; me: string }) {
   if (c.type === "comment") {
     return (
       <li className="animate-rise flex gap-3" style={rise(index)}>
@@ -38,7 +40,9 @@ function Entry({ c, index }: { c: TicketComment; index: number }) {
               · {ago(c.at)}
             </span>
           </p>
-          <div className="mt-1 rounded-xl rounded-tl-sm border border-border bg-surface-2/50 px-3 py-2 text-sm whitespace-pre-wrap">{c.text}</div>
+          <div className="mt-1 rounded-xl rounded-tl-sm border border-border bg-surface-2/50 px-3 py-2 text-sm break-words whitespace-pre-wrap">
+            <MentionText text={c.text ?? ""} people={c.mentions} me={me} />
+          </div>
         </div>
       </li>
     );
@@ -83,6 +87,9 @@ function TicketDetail({ kind }: { kind: TicketKind }) {
   const perms = useTicketPerms(kind);
   const { data: tk, error, missing } = useTicket(ticketId);
   const comments = useTicketComments(ticketId);
+  const me = useAdmin();
+  // `@mention` — fakt ha ticket pahu shaknare.
+  const people = useTicketPeople(ticketId).map((p) => ({ uid: p.uid, name: p.name }));
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -94,7 +101,8 @@ function TicketDetail({ kind }: { kind: TicketKind }) {
     if (!tk || !text.trim()) return;
     setSending(true);
     try {
-      const r = await addTicketComment(tk.id, text.trim());
+      const body = text.trim();
+      const r = await addTicketComment(tk.id, body, mentionsIn(body, people));
       setText("");
       if (r.status) toast.success(t("tickets.toast.status", { id: tk.id, status: statusLabel(r.status) }));
     } catch (err) {
@@ -202,10 +210,11 @@ function TicketDetail({ kind }: { kind: TicketKind }) {
             />
             <div className="px-5 pb-5">
               <form onSubmit={send} className="mb-5 border-b border-border pb-5">
-                <Textarea
+                <MentionTextarea
                   value={text}
+                  people={people}
                   maxLength={2000}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={setText}
                   placeholder={t("tickets.commentPlaceholder")}
                   className="min-h-20"
                   onKeyDown={(e) => {
@@ -225,7 +234,7 @@ function TicketDetail({ kind }: { kind: TicketKind }) {
               ) : (
                 <ol className="space-y-4">
                   {[...comments].reverse().map((c, i) => (
-                    <Entry key={c.id} c={c} index={i} />
+                    <Entry key={c.id} c={c} index={i} me={me.uid} />
                   ))}
                 </ol>
               )}

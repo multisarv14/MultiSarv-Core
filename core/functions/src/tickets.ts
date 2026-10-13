@@ -5,14 +5,16 @@
  * status workflow ani Module Access permissions server var tapasle jatat.
  * Panel fakt vachto (core Firestore rules).
  */
+import { logger } from "firebase-functions";
 import type { CallableRequest } from "firebase-functions/v2/https";
 
 import { getProject, MULTISARV_ID } from "./projects.js";
+import { pushTo } from "./push.js";
 import { callable, db, fail, hasModule, loadAdmin, now, str, type AdminDoc } from "./shared.js";
 
 const KINDS = {
-  client: { prefix: "CLT", module: "clientTickets" },
-  dev: { prefix: "DEV", module: "devTickets" },
+  client: { prefix: "CLT", module: "clientTickets", path: "/client-tickets", label: "Client ticket" },
+  dev: { prefix: "DEV", module: "devTickets", path: "/dev-tickets", label: "Dev ticket" },
 } as const;
 type Kind = keyof typeof KINDS;
 
@@ -135,6 +137,130 @@ const log = (
     at: now(),
   });
 
+// ── Notifications (bell inbox `admins/{uid}/inbox` + push) ──────────
+
+const STATUS_LABEL: Record<Status, string> = { open: "Open", inProcess: "In Process", uat: "UAT", closed: "Closed", hold: "Hold" };
+const PRIORITY_LABEL: Record<Priority, string> = { medium: "Medium", low: "Low", high: "High", critical: "Critical", showstopper: "Showstopper" };
+/** Project menus (`projects.ts`) → naav. */
+const MENU_LABEL: Record<string, string> = {
+  dashboard: "Dashboard",
+  users: "Users",
+  kyc: "KYC",
+  tasks: "Tasks",
+  disputes: "Disputes",
+  payouts: "Payouts",
+  ledger: "Ledger",
+  notifications: "Notifications",
+  catalog: "Catalog",
+  residents: "Residents",
+  bills: "Maintenance bills",
+  finance: "Expenses & income",
+  visitors: "Visitors",
+  notices: "Notices",
+  complaints: "Complaints",
+  contacts: "Emergency contacts",
+};
+const statusName = (s: unknown) => STATUS_LABEL[s as Status] ?? String(s ?? "");
+const priorityName = (p: unknown) => PRIORITY_LABEL[p as Priority] ?? "Medium";
+const moduleName = (m: unknown) => (typeof m === "string" && m ? (MENU_LABEL[m] ?? m) : "—");
+
+async function projectName(id: unknown) {
+  if (id === MULTISARV_ID) return "MultiSarv Core";
+  return (await getProject(id))?.name ?? String(id ?? "");
+}
+
+type FullTicket = TicketData & { title?: string; priority?: string; module?: string | null; status?: string };
+
+/** Ha user ha ticket pahu shakto ka — module "view" + Dev scope (rules / `ticketFor` sobat same). */
+const canSee = (uid: string, a: AdminDoc | undefined, kind: Kind, t: FullTicket) => !!a && hasModule(a, KINDS[kind].module, "view") && devVisible(uid, a, t);
+
+/**
+ * Ticket badalla — sambandhit lokanna bell (inbox) + push. Recipients: raise karnara, assignee,
+ * `extra` (juna assignee, mention), comment kelele; navin ticket la triage sathi `assign` permission
+ * asnare. Pratyekache access tapasun — ticket disat nasel tar kahich nahi. Karnaryala nahi.
+ */
+async function notifyTicket(opts: {
+  kind: Kind;
+  id: string;
+  ticket: FullTicket;
+  by: Person;
+  headline: string;
+  /** "Amit changed the status from Open → In Process" */
+  line: string;
+  extra?: string[];
+  triage?: boolean;
+  /** uid → hyala vegla line (udaharanartha "assigned this ticket to you", "mentioned you"). */
+  personal?: Record<string, string>;
+}) {
+  const { kind, id, ticket, by } = opts;
+  try {
+    const want = new Set<string>([...(opts.extra ?? []), ...Object.keys(opts.personal ?? {})]);
+    if (ticket.raisedBy?.uid) want.add(ticket.raisedBy.uid);
+    if (ticket.assignedTo?.uid) want.add(ticket.assignedTo.uid);
+    // Charchet asnare (comment kelele).
+    const comments = await db.collection("tickets").doc(id).collection("comments").where("type", "==", "comment").limit(300).get();
+    for (const c of comments.docs) {
+      const u = (c.get("by") as Person | undefined)?.uid;
+      if (u) want.add(u);
+    }
+
+    const admins = await db.collection("admins").where("active", "==", true).get();
+    const byId = new Map(admins.docs.map((d) => [d.id, d.data() as AdminDoc]));
+    if (opts.triage) for (const [u, a] of byId) if (hasModule(a, KINDS[kind].module, "assign")) want.add(u);
+    want.delete(by.uid);
+
+    const recipients = [...want].filter((u) => canSee(u, byId.get(u), kind, ticket));
+    if (!recipients.length) return;
+
+    const project = await projectName(ticket.projectId);
+    const details = [
+      `Project: ${project}`,
+      `Module: ${moduleName(ticket.module)}`,
+      `Priority: ${priorityName(ticket.priority)}`,
+      `Status: ${statusName(ticket.status)}`,
+      `Assigned to: ${ticket.assignedTo?.name ?? "Unassigned"}`,
+    ].join("\n");
+    const title = `${opts.headline} — #${id}`;
+    const link = `${KINDS[kind].path}/${id}`;
+
+    for (let i = 0; i < recipients.length; i += 450) {
+      const batch = db.batch();
+      for (const u of recipients.slice(i, i + 450)) {
+        const line = opts.personal?.[u] ?? opts.line;
+        batch.set(db.collection("admins").doc(u).collection("inbox").doc(), {
+          title,
+          body: `${line}\n${ticket.title ?? ""}\n${details}`,
+          byName: by.name,
+          isRead: false,
+          createdAt: now(),
+          type: "ticket",
+          ticketKind: kind,
+          ticketId: id,
+          link,
+        });
+      }
+      await batch.commit();
+    }
+    await Promise.all(
+      recipients.map((u) =>
+        pushTo(u, {
+          kind: "ticket",
+          title,
+          body: `${opts.personal?.[u] ?? opts.line} · ${ticket.title ?? ""}`.slice(0, 180),
+          link,
+          tag: `ticket-${id}`,
+          ticketId: id,
+        }),
+      ),
+    );
+  } catch (err) {
+    // Notification fail zala tari ticket che kaam zale ahe.
+    logger.warn("ticket notify failed", { id, err });
+  }
+}
+
+const readTicket = async (ref: FirebaseFirestore.DocumentReference) => (await ref.get()).data() as FullTicket;
+
 // ── Callables ────────────────────────────────────────────────────────
 
 export const raiseTicket = callable<{
@@ -185,6 +311,16 @@ export const raiseTicket = callable<{
   const ref = db.collection("tickets").doc(id);
   await log(ref, by, { type: "created" });
   if (assigned) await log(ref, by, { type: "assign", to: assigned.name });
+  await notifyTicket({
+    kind,
+    id,
+    ticket: await readTicket(ref),
+    by,
+    headline: "New Ticket Created",
+    line: `${by.name} created a new ticket`,
+    triage: true,
+    personal: assigned && assigned.uid !== by.uid ? { [assigned.uid]: `${by.name} created a new ticket and assigned it to you` } : {},
+  });
   return { id };
 });
 
@@ -205,16 +341,31 @@ export const updateTicket = callable<{
       const a = (data.assignedTo as Person | null)?.uid;
       if (a) await assignee(kind, a, projectId);
     }
-    await ref.update({
+    const patch = {
       title: str(req.data.title, "badTitle", 3, 150),
       description: str(req.data.description, "badDescription", 3, 5000),
       projectId,
       // Juna client priority / module pathavat nasel tar te tasech rahtat.
       ...(req.data.priority !== undefined && { priority: priorityOf(req.data.priority) }),
       ...(req.data.module !== undefined && { module: await moduleOf(projectId, req.data.module) }),
-      updatedAt: now(),
-    });
+    };
+    await ref.update({ ...patch, updatedAt: now() });
     await log(ref, by, { type: "edit" });
+
+    // Kay badalla — notification sathi.
+    const changes: string[] = [];
+    if (patch.title !== data.title) changes.push(`renamed the ticket from "${data.title}" to "${patch.title}"`);
+    if (patch.description !== data.description) changes.push("updated the description");
+    if (patch.projectId !== data.projectId) changes.push(`moved it from ${await projectName(data.projectId)} → ${await projectName(patch.projectId)}`);
+    if (patch.priority !== undefined && patch.priority !== (data.priority ?? "medium")) {
+      changes.push(`changed the priority from ${priorityName(data.priority)} → ${priorityName(patch.priority)}`);
+    }
+    if (patch.module !== undefined && (patch.module ?? null) !== (data.module ?? null)) {
+      changes.push(`changed the module from ${moduleName(data.module)} → ${moduleName(patch.module)}`);
+    }
+    if (changes.length) {
+      await notifyTicket({ kind, id: ref.id, ticket: await readTicket(ref), by, headline: "Ticket Updated", line: `${by.name} ${changes.join("; ")}` });
+    }
     return { ok: true };
   },
 );
@@ -225,7 +376,27 @@ export const assignTicket = callable<{ id?: string; assignee?: string | null }>(
   const prev = (data.assignedTo as Person | null)?.uid ?? null;
   if ((next?.uid ?? null) === prev) return { ok: true };
   await ref.update({ assignedTo: next, updatedAt: now() });
-  await log(ref, by, { type: "assign", from: (data.assignedTo as Person | null)?.name, to: next?.name });
+  const before = data.assignedTo as Person | null;
+  await log(ref, by, { type: "assign", from: before?.name, to: next?.name });
+  const line = !next
+    ? `${by.name} unassigned ${before?.name ?? "the ticket"}`
+    : before
+      ? `${by.name} reassigned the ticket from ${before.name} → ${next.name}`
+      : `${by.name} assigned the ticket to ${next.name}`;
+  await notifyTicket({
+    kind,
+    id: ref.id,
+    ticket: await readTicket(ref),
+    by,
+    headline: before && next ? "Ticket Reassigned" : next ? "Ticket Assigned" : "Ticket Unassigned",
+    line,
+    // Juna assignee — ajun ticket disat asel tarach (canSee tapasto).
+    extra: before ? [before.uid] : [],
+    personal: {
+      ...(next && next.uid !== by.uid && { [next.uid]: `${by.name} assigned this ticket to you` }),
+      ...(before && before.uid !== by.uid && next && { [before.uid]: `${by.name} reassigned this ticket from you to ${next.name}` }),
+    },
+  });
   return { ok: true };
 });
 
@@ -239,6 +410,16 @@ export const setTicketStatus = callable<{ id?: string; status?: string }>(async 
     return cur;
   });
   await log(ref, by, { type: "status", from, to });
+  const headline =
+    to === "closed" ? "Ticket Closed" : to === "hold" ? "Ticket On Hold" : from === "hold" ? "Ticket Resumed" : from === "uat" && to === "inProcess" ? "Ticket Reopened" : "Ticket Status Changed";
+  await notifyTicket({
+    kind: (await ref.get()).get("kind") as Kind,
+    id: ref.id,
+    ticket: await readTicket(ref),
+    by,
+    headline,
+    line: `${by.name} changed the status from ${statusName(from)} → ${statusName(to)}`,
+  });
   return { ok: true };
 });
 
@@ -246,9 +427,18 @@ export const setTicketStatus = callable<{ id?: string; status?: string }>(async 
  * Comment save zalyavar: assignee ne comment kela ani ticket ajun Open asel tar
  * apoaap In Process (kaam suru). UAT / Closed / Hold / In Process la haat lavat nahi.
  */
-export const addTicketComment = callable<{ id?: string; text?: string }>(async (req) => {
-  const { ref, uid, by } = await ticketFor(req, req.data.id, "view");
-  await log(ref, by, { type: "comment", text: str(req.data.text, "badComment", 1, 2000) });
+export const addTicketComment = callable<{ id?: string; text?: string; mentions?: string[] }>(async (req) => {
+  const { ref, uid, by, kind, data } = await ticketFor(req, req.data.id, "view");
+  const text = str(req.data.text, "badComment", 1, 2000);
+  // Mention — fakt ha ticket pahu shaknare (itar gal).
+  const wanted = Array.isArray(req.data.mentions)
+    ? [...new Set(req.data.mentions.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 128))].slice(0, 20)
+    : [];
+  const people = wanted.length ? await db.getAll(...wanted.map((u) => db.collection("admins").doc(u))) : [];
+  const mentions = people
+    .filter((d) => d.exists && d.id !== uid && d.get("active") === true && canSee(d.id, d.data() as AdminDoc, kind, data))
+    .map((d) => ({ uid: d.id, name: String(d.get("name") ?? "") }));
+  await ref.collection("comments").add({ type: "comment", text, mentions, by, at: now() });
 
   const started = await db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
@@ -257,7 +447,28 @@ export const addTicketComment = callable<{ id?: string; text?: string }>(async (
     return auto;
   });
   if (started) await log(ref, by, { type: "status", from: "open", to: "inProcess" });
+
+  const quote = `"${text.length > 120 ? `${text.slice(0, 120)}…` : text}"`;
+  await notifyTicket({
+    kind,
+    id: ref.id,
+    ticket: await readTicket(ref),
+    by,
+    headline: mentions.length ? "Ticket Comment" : "New Comment on Ticket",
+    line: `${by.name} commented: ${quote}${started ? " (status → In Process)" : ""}`,
+    personal: Object.fromEntries(mentions.map((m) => [m.uid, `${by.name} mentioned you: ${quote}`])),
+  });
   return { ok: true, status: started ? "inProcess" : null };
+});
+
+/** Comment madhe `@mention` sathi — fakt ha ticket pahu shaknare active users (mi sodun). */
+export const listTicketPeople = callable<{ id?: string }>(async (req) => {
+  const { uid, kind, data } = await ticketFor(req, req.data.id, "view");
+  const snap = await db.collection("admins").where("active", "==", true).get();
+  return snap.docs
+    .filter((d) => d.id !== uid && canSee(d.id, d.data() as AdminDoc, kind, data))
+    .map((d) => person(d.id, d.data() as AdminDoc))
+    .sort((a, b) => a.name.localeCompare(b.name));
 });
 
 /** Assign karta yenare users — tya module cha "view" asnare active admins (Dev: `projectId` cha access asnare). */

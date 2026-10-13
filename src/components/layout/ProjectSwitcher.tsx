@@ -2,7 +2,7 @@ import { Check, ChevronsUpDown, LayoutGrid, LayoutPanelTop } from "lucide-react"
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import type { ProjectDef } from "@/config/projects";
+import { projectBase, templateOf, type ProjectDef } from "@/config/projects";
 import { useAdmin, useVisibleProjects } from "@/context/session";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -71,9 +71,10 @@ export function ProjectSwitcher({ current }: { current: ProjectDef }) {
 
   const switchTo = (p: ProjectDef) => {
     setOpen(false);
-    // Same page dusrya project madhe: /p/noai/payouts → /p/xyz/payouts
-    const sub = pathname.split("/").slice(3).join("/");
-    navigate(`/p/${p.id}/${sub}`);
+    // Same page dusrya project madhe: /p/noai/payouts → /p/xyz/payouts.
+    // Template vegla (NOAI ↔ SocietySarv) tar pages vegle — tya project cha dashboard.
+    const sub = templateOf(p) === templateOf(current) ? pathname.split("/").slice(3).join("/") : "";
+    navigate(`${projectBase(p)}/${sub}`);
   };
 
   return (
