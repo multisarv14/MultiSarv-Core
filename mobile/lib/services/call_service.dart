@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -400,7 +402,11 @@ class CallService extends ChangeNotifier {
   StreamSubscription<List<CallRecord>>? _incomingSub;
   StreamSubscription<CallEvent?>? _eventSub;
   final _shown = <String>{};
+  final _accepting = <String>{};
   Set<String> _ringing = {};
+  AppLifecycleListener? _life;
+
+  static const _native = MethodChannel('multisarv/calls');
 
   bool get inCall => current != null && !current!.ended;
 
@@ -411,15 +417,32 @@ class CallService extends ChangeNotifier {
     _me = me;
     _incomingSub = _repo.incoming(me).listen(_onIncoming, onError: (Object _) {});
     _eventSub = FlutterCallkitIncoming.onEvent.listen(_onEvent);
-    unawaited(_resumeAccepted());
+    _life = AppLifecycleListener(onResume: () => unawaited(_cleanup()));
+    unawaited(_resumeAccepted().then((_) => _cleanup()));
   }
 
   void stop() {
     unawaited(_incomingSub?.cancel());
     unawaited(_eventSub?.cancel());
+    _life?.dispose();
     _incomingSub = null;
     _eventSub = null;
+    _life = null;
     _me = null;
+  }
+
+  /// Call nahi tari phone var "call chalu ahe" notification atakla — accepted callkit
+  /// entries samplava, ani (Android) ongoing service / notification thet band.
+  Future<void> _cleanup() async {
+    if (inCall || _accepting.isNotEmpty) return;
+    try {
+      for (final c in await FlutterCallkitIncoming.activeCalls()) {
+        if (c.isAccepted) await FlutterCallkitIncoming.endCall(c.id);
+      }
+    } catch (_) {}
+    if (Platform.isAndroid && !inCall && _accepting.isEmpty) {
+      await _native.invokeMethod<void>('clearOngoing').catchError((Object _) {});
+    }
   }
 
   /// Chat header madhun.
@@ -440,6 +463,7 @@ class CallService extends ChangeNotifier {
           if (current == s) {
             current = null;
             notifyListeners();
+            unawaited(_cleanup());
           }
         });
       }
@@ -487,15 +511,26 @@ class CallService extends ChangeNotifier {
 
   Future<void> acceptById(String callId) async {
     final me = _me;
-    if (me == null || current?.callId == callId) return;
-    final r = await _repo.get(callId).catchError((Object _) => null);
-    if (r == null || r.status != 'ringing' || r.callee != me) {
-      unawaited(FlutterCallkitIncoming.endCall(callId).catchError((Object _) {}));
-      return;
+    // Native "Accept" event ani `_resumeAccepted` dogha ekach call la — ekdach joda.
+    if (me == null || _accepting.contains(callId) || (current?.callId == callId && !current!.ended)) return;
+    _accepting.add(callId);
+    try {
+      final r = await _repo.get(callId).catchError((Object _) => null);
+      if (r == null || r.status != 'ringing' || r.callee != me) {
+        await FlutterCallkitIncoming.endCall(callId).catchError((Object _) {});
+        return;
+      }
+      if (inCall) {
+        await FlutterCallkitIncoming.endCall(callId).catchError((Object _) {});
+        return;
+      }
+      final s = CallSession.incomingCall(_repo, me, r);
+      _open(s);
+      await s.accept();
+    } finally {
+      _accepting.remove(callId);
+      if (!inCall) unawaited(_cleanup());
     }
-    final s = CallSession.incomingCall(_repo, me, r);
-    _open(s);
-    await s.accept();
   }
 }
 
