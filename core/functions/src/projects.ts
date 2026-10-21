@@ -51,6 +51,8 @@ export const SOCIETY_MENUS = [
   "notices",
   "complaints",
   "contacts",
+  "roles",
+  "subscriptions",
 ] as const;
 
 export type ProjectTemplate = "marketplace" | "society";

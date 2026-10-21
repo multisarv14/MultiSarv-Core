@@ -1,15 +1,20 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getAggregateFromServer,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  serverTimestamp,
   sum,
+  Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type DocumentSnapshot,
   type Query,
 } from "firebase/firestore";
@@ -43,6 +48,11 @@ export const VISITOR_STATUSES = ["INSIDE", "EXITED", "PRE_APPROVED", "REJECTED"]
 export type VisitorStatus = (typeof VISITOR_STATUSES)[number];
 export const STAFF_ROLES = ["GUARD", "HOUSEKEEPING", "MAINTENANCE_STAFF", "ACCOUNTANT", "MANAGER"];
 export const COMMITTEE_ROLES = ["CHAIRMAN", "SECRETARY", "TREASURER", "COMMITTEE"];
+/** Member unit la milnare roles (committee kinva sabhasad) — app `MEMBER_ROLES`. */
+export const MEMBER_ROLES = [...COMMITTEE_ROLES, "RESIDENT", "TENANT"];
+/** Society staff role la deta yenare screens — app `ROLE_MENU_KEYS` (bottom bar tabs). */
+export const ROLE_MENU_KEYS = ["DASHBOARD", "ACCOUNTS", "MAINTENANCE", "GATE", "COMMUNITY"] as const;
+export type RoleMenuKey = (typeof ROLE_MENU_KEYS)[number];
 
 // ── Normalizers (app sarkhe safe defaults) ───────────────────────────
 
@@ -110,6 +120,9 @@ export interface Resident {
   isActive: boolean;
   staffDesignation: string;
   photo: string;
+  /** Society cha swatahcha staff role (`roles/{id}`), asel tar. */
+  customRoleId: string;
+  customRoleName: string;
 }
 
 const toResident = (s: DocumentSnapshot): Resident => {
@@ -134,6 +147,8 @@ const toResident = (s: DocumentSnapshot): Resident => {
     isActive: bool(m, "isActive", true),
     staffDesignation: str(m, "staffDesignation"),
     photo: str(m, "photoBase64"),
+    customRoleId: str(m, "customRoleId"),
+    customRoleName: str(m, "customRoleName"),
   };
 };
 
@@ -433,4 +448,357 @@ export const isPin = (pin: string) => /^[0-9]{4}$/.test(pin);
 export async function resetResidentPin(p: ProjectDef, code: string, r: Resident, pin: string) {
   if (!isPin(pin)) throw new Error("PIN");
   await updateDoc(doc(sub(p, code, "residents"), r.docId), { pin });
+}
+
+// ── Member roles (app `roles_screen.dart` sobat same) ───────────────
+
+const timeOf = (m: Raw, k: string): Date | null => (m[k] instanceof Timestamp ? (m[k] as Timestamp).toDate() : null);
+
+export interface SocietyRole {
+  id: string;
+  name: string;
+  description: string;
+  /** App madhla built-in staff role — juna app hach vaparto. */
+  baseRole: string;
+  menus: RoleMenuKey[];
+  isActive: boolean;
+}
+
+/** Fakt olakhiche screens, bottom bar chya kramane, ani kadhich rikame nahi (app `normaliseRoleMenus`). */
+export const normaliseRoleMenus = (menus: readonly string[]): RoleMenuKey[] => {
+  const wanted = new Set(menus.map((m) => m.trim().toUpperCase()));
+  const out = ROLE_MENU_KEYS.filter((k) => wanted.has(k));
+  return out.length ? out : ["COMMUNITY"];
+};
+
+const toRole = (s: DocumentSnapshot): SocietyRole => {
+  const m = data(s);
+  return {
+    id: s.id,
+    name: str(m, "name", s.id),
+    description: str(m, "description"),
+    baseRole: pick(STAFF_ROLES, m.baseRole, "MANAGER"),
+    menus: normaliseRoleMenus(Array.isArray(m.menus) ? m.menus.filter((x): x is string => typeof x === "string") : []),
+    isActive: bool(m, "isActive", true),
+  };
+};
+
+export async function listRoles(p: ProjectDef, code: string): Promise<SocietyRole[]> {
+  const snap = await getDocs(sub(p, code, "roles"));
+  return snap.docs.map(toRole).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Role save + tyacha role asnarya members che naav / base role ekach batch madhe (app `saveRole`). */
+export async function saveRole(p: ProjectDef, code: string, role: SocietyRole, holders: Resident[]) {
+  const ref = role.id ? doc(sub(p, code, "roles"), role.id) : doc(sub(p, code, "roles"));
+  const batch = writeBatch(db(p));
+  batch.set(
+    ref,
+    {
+      name: role.name.trim(),
+      description: role.description.trim(),
+      baseRole: role.baseRole,
+      menus: normaliseRoleMenus(role.menus),
+      isActive: role.isActive,
+      updatedAt: serverTimestamp(),
+      ...(role.id ? {} : { createdAt: serverTimestamp() }),
+    },
+    { merge: true },
+  );
+  for (const r of holders) {
+    batch.update(doc(sub(p, code, "residents"), r.docId), { role: role.baseRole, customRoleName: role.name.trim() });
+  }
+  await batch.commit();
+}
+
+export async function deleteRole(p: ProjectDef, code: string, id: string) {
+  await deleteDoc(doc(sub(p, code, "roles"), id));
+}
+
+export interface RoleChange {
+  id: string;
+  flatNumber: string;
+  memberName: string;
+  fromRole: string;
+  toRole: string;
+  fromCustomRoleName: string;
+  toCustomRoleName: string;
+  changedBy: string;
+  source: "app" | "core";
+  at: Date | null;
+}
+
+const toRoleChange = (s: DocumentSnapshot): RoleChange => {
+  const m = data(s);
+  return {
+    id: s.id,
+    flatNumber: str(m, "flatNumber"),
+    memberName: str(m, "memberName"),
+    fromRole: str(m, "fromRole"),
+    toRole: str(m, "toRole"),
+    fromCustomRoleName: str(m, "fromCustomRoleName"),
+    toCustomRoleName: str(m, "toCustomRoleName"),
+    changedBy: str(m, "changedBy"),
+    source: str(m, "source") === "core" ? "core" : "app",
+    at: timeOf(m, "at"),
+  };
+};
+
+export async function listRoleHistory(p: ProjectDef, code: string): Promise<RoleChange[]> {
+  const snap = await getDocs(query(sub(p, code, "role_history"), orderBy("at", "desc"), limit(200)));
+  return snap.docs.map(toRoleChange);
+}
+
+/** Ek role badal — member record var fakt role fields, ani history entry, ekach batch madhe. */
+export interface RoleAssignment {
+  resident: Resident;
+  role: string;
+  custom: SocietyRole | null;
+}
+
+/**
+ * Panel madhun role badal. Chairman navin konala kela tar juna chairman `demote` madhe
+ * yeto — society la ek ani ekach chairman rahto (app `handOverChairman` sarkhe).
+ */
+export async function changeRoles(p: ProjectDef, code: string, changes: RoleAssignment[], changedBy: string) {
+  const batch = writeBatch(db(p));
+  for (const { resident: r, role, custom } of changes) {
+    batch.update(doc(sub(p, code, "residents"), r.docId), {
+      role: custom?.baseRole ?? role,
+      customRoleId: custom?.id ?? "",
+      customRoleName: custom?.name.trim() ?? "",
+    });
+    batch.set(doc(sub(p, code, "role_history")), {
+      flatNumber: r.flatNumber,
+      memberName: r.ownerName,
+      fromRole: r.role,
+      toRole: custom?.baseRole ?? role,
+      fromCustomRoleName: r.customRoleName,
+      toCustomRoleName: custom?.name.trim() ?? "",
+      changedBy,
+      source: "core",
+      at: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+}
+
+// ── SocietySarv plans ani subscription ─────────────────────────────
+
+/** Top-level `subscription_plans/{id}` — sagle societies sathi ek catalogue, fakt Core lihito. */
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMonths: number;
+  features: string[];
+  isActive: boolean;
+  sortOrder: number;
+}
+
+const plans = (p: ProjectDef) => collection(db(p), "subscription_plans");
+
+const toPlan = (s: DocumentSnapshot): SubscriptionPlan => {
+  const m = data(s);
+  return {
+    id: s.id,
+    name: str(m, "name", s.id),
+    description: str(m, "description"),
+    price: numOf(m, "price"),
+    durationMonths: numOf(m, "durationMonths", 12),
+    features: Array.isArray(m.features) ? m.features.filter((x): x is string => typeof x === "string") : [],
+    isActive: bool(m, "isActive", true),
+    sortOrder: numOf(m, "sortOrder"),
+  };
+};
+
+export async function listPlans(p: ProjectDef): Promise<SubscriptionPlan[]> {
+  const snap = await getDocs(plans(p));
+  return snap.docs.map(toPlan).sort((a, b) => a.sortOrder - b.sortOrder || a.price - b.price);
+}
+
+export async function savePlan(p: ProjectDef, plan: SubscriptionPlan) {
+  const ref = plan.id ? doc(plans(p), plan.id) : doc(plans(p));
+  const batch = writeBatch(db(p));
+  batch.set(
+    ref,
+    {
+      name: plan.name.trim(),
+      description: plan.description.trim(),
+      price: Number(plan.price) || 0,
+      durationMonths: Math.max(1, Math.round(plan.durationMonths)),
+      features: plan.features.map((f) => f.trim()).filter(Boolean),
+      isActive: plan.isActive,
+      sortOrder: Math.round(plan.sortOrder) || 0,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  await batch.commit();
+}
+
+/** `societies/{code}/subscription/current` — plan assign zala tevha chi kimat / features copy. */
+export interface SocietySubscription {
+  planId: string;
+  planName: string;
+  price: number;
+  durationMonths: number;
+  features: string[];
+  startDate: string;
+  expiryDate: string;
+  updatedBy: string;
+}
+
+export type SubscriptionStatus = "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "NONE";
+/** App `SUBSCRIPTION_EXPIRY_WARNING_DAYS` sobat same. */
+export const EXPIRY_WARNING_DAYS = 15;
+
+const dayOf = (iso: string) => {
+  const [y, mo, d] = iso.split("-").map(Number);
+  return y && mo && d ? Date.UTC(y, mo - 1, d) : NaN;
+};
+/** `yyyy-MM-dd` (local date). */
+export const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Expiry cha divas pan covered (app `subscriptionStatusOf` sarkhe). */
+export function daysLeft(s: SocietySubscription, today = new Date()): number {
+  return Math.round((dayOf(s.expiryDate) - dayOf(isoDay(today))) / 86_400_000);
+}
+
+export function subscriptionStatus(s: SocietySubscription | null, today = new Date()): SubscriptionStatus {
+  if (!s || !s.planId.trim() || Number.isNaN(dayOf(s.expiryDate))) return "NONE";
+  const left = daysLeft(s, today);
+  if (left < 0) return "EXPIRED";
+  return left <= EXPIRY_WARNING_DAYS ? "EXPIRING_SOON" : "ACTIVE";
+}
+
+/** Plan `start` pasun `months` mahine — shevatcha divas (start + months − 1 day). */
+export function expiryFor(start: string, months: number): string {
+  const [y, m, d] = start.split("-").map(Number);
+  const end = new Date(y, m - 1 + months, d);
+  end.setDate(end.getDate() - 1);
+  return isoDay(end);
+}
+
+const toSubscription = (s: DocumentSnapshot): SocietySubscription => {
+  const m = data(s);
+  return {
+    planId: str(m, "planId"),
+    planName: str(m, "planName"),
+    price: numOf(m, "price"),
+    durationMonths: numOf(m, "durationMonths"),
+    features: Array.isArray(m.features) ? m.features.filter((x): x is string => typeof x === "string") : [],
+    startDate: str(m, "startDate"),
+    expiryDate: str(m, "expiryDate"),
+    updatedBy: str(m, "updatedBy"),
+  };
+};
+
+const currentSub = (p: ProjectDef, code: string) => doc(sub(p, code, "subscription"), "current");
+
+export async function getSubscription(p: ProjectDef, code: string): Promise<SocietySubscription | null> {
+  const s = await getDoc(currentSub(p, code));
+  return s.exists() ? toSubscription(s) : null;
+}
+
+export interface SubscriptionHistoryEntry extends SocietySubscription {
+  id: string;
+  action: "ASSIGNED" | "RENEWED" | "CHANGED" | "CANCELLED";
+  at: Date | null;
+}
+
+export async function listSubscriptionHistory(p: ProjectDef, code: string): Promise<SubscriptionHistoryEntry[]> {
+  const snap = await getDocs(query(sub(p, code, "subscription_history"), orderBy("at", "desc"), limit(100)));
+  return snap.docs.map((d) => {
+    const m = data(d);
+    const action = str(m, "action");
+    return {
+      ...toSubscription(d),
+      id: d.id,
+      action: (["ASSIGNED", "RENEWED", "CHANGED", "CANCELLED"].includes(action) ? action : "ASSIGNED") as SubscriptionHistoryEntry["action"],
+      at: timeOf(m, "at"),
+    };
+  });
+}
+
+export const REQUEST_STATUSES = ["PENDING", "DONE", "REJECTED"] as const;
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+export interface SubscriptionRequest {
+  id: string;
+  planId: string;
+  planName: string;
+  requestedBy: string;
+  requestedFlat: string;
+  contactNumber: string;
+  note: string;
+  status: RequestStatus;
+  adminNote: string;
+  createdAt: Date | null;
+}
+
+export async function listSubscriptionRequests(p: ProjectDef, code: string): Promise<SubscriptionRequest[]> {
+  const snap = await getDocs(query(sub(p, code, "subscription_requests"), orderBy("createdAt", "desc"), limit(50)));
+  return snap.docs.map((d) => {
+    const m = data(d);
+    return {
+      id: d.id,
+      planId: str(m, "planId"),
+      planName: str(m, "planName"),
+      requestedBy: str(m, "requestedBy"),
+      requestedFlat: str(m, "requestedFlat"),
+      contactNumber: str(m, "contactNumber"),
+      note: str(m, "note"),
+      status: pick(REQUEST_STATUSES, m.status, "PENDING"),
+      adminNote: str(m, "adminNote"),
+      createdAt: timeOf(m, "createdAt"),
+    };
+  });
+}
+
+/**
+ * Society la plan dene / renew / badalne: `current`, history entry ani (asel tar) request
+ * `DONE` — ekach batch madhe, mhanje app la nehmi purna mahiti disel.
+ */
+export async function assignSubscription(
+  p: ProjectDef,
+  code: string,
+  plan: SubscriptionPlan,
+  startDate: string,
+  by: string,
+  previous: SocietySubscription | null,
+  requestId?: string,
+) {
+  const record = {
+    planId: plan.id,
+    planName: plan.name,
+    price: plan.price,
+    durationMonths: plan.durationMonths,
+    features: plan.features,
+    startDate,
+    expiryDate: expiryFor(startDate, plan.durationMonths),
+    updatedBy: by,
+  };
+  const action = !previous || subscriptionStatus(previous) === "NONE" ? "ASSIGNED" : previous.planId === plan.id ? "RENEWED" : "CHANGED";
+  const batch = writeBatch(db(p));
+  batch.set(currentSub(p, code), { ...record, updatedAt: serverTimestamp() });
+  batch.set(doc(sub(p, code, "subscription_history")), { ...record, action, at: serverTimestamp() });
+  if (requestId) {
+    batch.update(doc(sub(p, code, "subscription_requests"), requestId), { status: "DONE", adminNote: "", closedBy: by, closedAt: serverTimestamp() });
+  }
+  await batch.commit();
+}
+
+/** Plan band — `current` kadhla jato, history madhe `CANCELLED` nond. */
+export async function cancelSubscription(p: ProjectDef, code: string, previous: SocietySubscription, by: string) {
+  const batch = writeBatch(db(p));
+  batch.delete(currentSub(p, code));
+  batch.set(doc(sub(p, code, "subscription_history")), { ...previous, updatedBy: by, action: "CANCELLED", at: serverTimestamp() });
+  await batch.commit();
+}
+
+export async function closeSubscriptionRequest(p: ProjectDef, code: string, id: string, status: Exclude<RequestStatus, "PENDING">, note: string, by: string) {
+  await updateDoc(doc(sub(p, code, "subscription_requests"), id), { status, adminNote: note.trim(), closedBy: by, closedAt: serverTimestamp() });
 }

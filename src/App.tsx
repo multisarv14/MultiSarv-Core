@@ -31,6 +31,8 @@ const Visitors = page(() => import("./pages/society/Visitors"), "Visitors");
 const Notices = page(() => import("./pages/society/Notices"), "Notices");
 const Complaints = page(() => import("./pages/society/Complaints"), "Complaints");
 const Contacts = page(() => import("./pages/society/Contacts"), "Contacts");
+const SocietyRoles = page(() => import("./pages/society/Roles"), "SocietyRoles");
+const Subscription = page(() => import("./pages/society/Subscription"), "Subscription");
 
 // Master panel
 const Projects = page(() => import("./pages/master/Projects"), "Projects");
@@ -123,6 +125,8 @@ const router = createBrowserRouter([
           { path: "finance", element: <SocietyFinance /> },
           { path: "notices", element: <Notices /> },
           { path: "contacts", element: <Contacts /> },
+          { path: "roles", element: <SocietyRoles /> },
+          { path: "subscription", element: <Subscription /> },
           { path: "*", element: <Navigate to="." replace /> },
         ],
       },

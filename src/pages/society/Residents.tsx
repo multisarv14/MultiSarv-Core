@@ -1,20 +1,148 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, KeyRound, Users } from "lucide-react";
-import { useState } from "react";
+import { Download, KeyRound, UserCog, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { isPin, listResidents, resetResidentPin, type Resident } from "@/api/society";
+import {
+  changeRoles,
+  isPin,
+  listResidents,
+  listRoles,
+  MEMBER_ROLES,
+  resetResidentPin,
+  STAFF_ROLES,
+  type Resident,
+  type RoleAssignment,
+} from "@/api/society";
 import { DataTable, ErrorState, PageHeader, type Column } from "@/components/ui/data";
 import { Modal } from "@/components/ui/overlay";
-import { Avatar, Badge, Button, EmptyState, Input, Label, Segmented } from "@/components/ui/primitives";
+import { Avatar, Badge, Button, EmptyState, Input, Label, Segmented, Select } from "@/components/ui/primitives";
 import { allows, useProject } from "@/context/project";
+import { useAdmin } from "@/context/session";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/firebase";
 import { money } from "@/lib/format";
 import { cn, downloadCsv } from "@/lib/utils";
 
 import { matches, roleGroup, SearchBox, SocietyRoleBadge, Totals, type RoleGroup } from "./parts";
-import { useSociety, useSocietyQuery } from "./state";
+import { roleName } from "./Roles";
+import { enumLabel, useSociety, useSocietyQuery } from "./state";
+
+/** Picker value: built-in role (`SECRETARY`) kinva society role (`custom:<id>`). */
+const CUSTOM = "custom:";
+
+/**
+ * Member / staff cha role tyach record var badalto — member ani staff kadhich ekmekat
+ * badlat nahit (duplicate record nako). Chairman navin konala kela tar juna chairman
+ * kay hoil te vicharto, mhanje society la nehmi ek chairman rahto.
+ */
+function RoleDialog({ resident, all, onClose }: { resident: Resident | null; all: Resident[]; onClose: () => void }) {
+  const { project } = useProject();
+  const { current } = useSociety();
+  const me = useAdmin();
+  const qc = useQueryClient();
+  const roles = useSocietyQuery("roles", listRoles);
+  const [pick, setPick] = useState("");
+  const [prevRole, setPrevRole] = useState("COMMITTEE");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!resident) return;
+    setPick(resident.customRoleId ? CUSTOM + resident.customRoleId : resident.role);
+    setPrevRole("COMMITTEE");
+  }, [resident]);
+
+  if (!resident) return <Modal open={false} onClose={onClose} title="" />;
+
+  const isStaff = STAFF_ROLES.includes(resident.role);
+  const custom = pick.startsWith(CUSTOM) ? (roles.data ?? []).find((r) => r.id === pick.slice(CUSTOM.length)) ?? null : null;
+  const role = custom?.baseRole ?? pick;
+  const sitting = all.filter((r) => r.role === "CHAIRMAN" && r.docId !== resident.docId);
+  const becomingChairman = role === "CHAIRMAN" && resident.role !== "CHAIRMAN";
+  const losingChairman = resident.role === "CHAIRMAN" && role !== "CHAIRMAN";
+  const vacant = !isStaff && !resident.ownerName.trim() && role !== "RESIDENT";
+  const unchanged = role === resident.role && (custom?.id ?? "") === resident.customRoleId;
+
+  const problem = vacant
+    ? t("soc.role.vacant")
+    : losingChairman && sitting.length === 0
+      ? t("soc.role.chairmanKeep")
+      : unchanged
+        ? t("soc.role.unchanged")
+        : null;
+
+  const save = async () => {
+    if (!current || problem) return;
+    setBusy(true);
+    try {
+      const changes: RoleAssignment[] = [{ resident, role, custom }];
+      if (becomingChairman) for (const c of sitting) changes.push({ resident: c, role: prevRole, custom: null });
+      await changeRoles(project, current.code, changes, me.email);
+      toast.success(t("soc.role.changed", { flat: resident.flatNumber }));
+      qc.invalidateQueries({ queryKey: [project.id, "soc", current.code] });
+      onClose();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={busy ? () => {} : onClose}
+      size="sm"
+      title={t("soc.role.change")}
+      description={`${resident.flatNumber} · ${resident.ownerName || "—"}`}
+      footer={
+        <>
+          <Button onClick={onClose} disabled={busy}>
+            {t("act.cancel")}
+          </Button>
+          <Button variant="primary" loading={busy} disabled={!!problem} onClick={save}>
+            {t("act.save")}
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-3 text-xs text-muted">
+        {t("soc.role.current")}: <span className="font-medium text-text">{roleName(resident.role, resident.customRoleName)}</span>
+      </p>
+      <Label>{t("soc.role.new")}</Label>
+      <Select value={pick} onChange={(e) => setPick(e.target.value)}>
+        {(isStaff ? STAFF_ROLES : MEMBER_ROLES).map((r) => (
+          <option key={r} value={r}>
+            {enumLabel(r)}
+          </option>
+        ))}
+        {isStaff &&
+          (roles.data ?? [])
+            .filter((r) => r.isActive || r.id === resident.customRoleId)
+            .map((r) => (
+              <option key={r.id} value={CUSTOM + r.id}>
+                {r.name}
+              </option>
+            ))}
+      </Select>
+      {becomingChairman &&
+        sitting.map((c) => (
+          <div key={c.docId} className="mt-4">
+            <Label>{t("soc.role.chairmanHandover", { name: c.ownerName, flat: c.flatNumber })}</Label>
+            <Select value={prevRole} onChange={(e) => setPrevRole(e.target.value)}>
+              {MEMBER_ROLES.filter((r) => r !== "CHAIRMAN").map((r) => (
+                <option key={r} value={r}>
+                  {enumLabel(r)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ))}
+      {problem && !unchanged && <p className="mt-3 text-xs text-rose-600 dark:text-rose-400">{problem}</p>}
+      <p className="mt-3 text-xs text-muted">{t("soc.role.sync")}</p>
+    </Modal>
+  );
+}
 
 function PinDialog({ resident, onClose }: { resident: Resident | null; onClose: () => void }) {
   const { project } = useProject();
@@ -84,7 +212,9 @@ export function Residents() {
   const [q, setQ] = useState("");
   const [group, setGroup] = useState<RoleGroup | "all">("all");
   const [pinFor, setPinFor] = useState<Resident | null>(null);
+  const [roleFor, setRoleFor] = useState<Resident | null>(null);
   const canEdit = allows(menus, "residents");
+  const canChangeRole = allows(menus, "roles");
 
   const all = list.data ?? [];
   const rows = all.filter(
@@ -122,7 +252,7 @@ export function Residents() {
       header: t("soc.col.role"),
       cell: (r) => (
         <div className="flex flex-wrap gap-1">
-          <SocietyRoleBadge role={r.role} />
+          <SocietyRoleBadge role={r.role} label={r.customRoleName || undefined} />
           {!r.isActive && <Badge tone="red">{t("soc.inactive")}</Badge>}
         </div>
       ),
@@ -142,16 +272,25 @@ export function Residents() {
       cell: (r) =>
         r.hasPin ? <Badge tone="green">{t("soc.pin.set")}</Badge> : <Badge tone="amber">{t("soc.pin.notSet")}</Badge>,
     },
-    ...(canEdit
+    ...(canEdit || canChangeRole
       ? [
           {
             key: "act",
             header: "",
             className: "text-right",
             cell: (r: Resident) => (
-              <Button size="sm" variant="ghost" icon={<KeyRound className="size-3.5" />} onClick={() => setPinFor(r)}>
-                {t("soc.pin.reset")}
-              </Button>
+              <div className="flex justify-end gap-1">
+                {canChangeRole && (
+                  <Button size="sm" variant="ghost" icon={<UserCog className="size-3.5" />} onClick={() => setRoleFor(r)}>
+                    {t("soc.role.change")}
+                  </Button>
+                )}
+                {canEdit && (
+                  <Button size="sm" variant="ghost" icon={<KeyRound className="size-3.5" />} onClick={() => setPinFor(r)}>
+                    {t("soc.pin.reset")}
+                  </Button>
+                )}
+              </div>
             ),
           },
         ]
@@ -177,7 +316,7 @@ export function Residents() {
                     wing: r.wing,
                     owner: r.ownerName,
                     tenant: r.tenantName,
-                    role: r.role,
+                    role: r.customRoleName || r.role,
                     phone: r.contactNumber,
                     email: r.email,
                     unitType: r.unitType,
@@ -229,6 +368,7 @@ export function Residents() {
         />
       )}
       <PinDialog resident={pinFor} onClose={() => setPinFor(null)} />
+      <RoleDialog resident={roleFor} all={all} onClose={() => setRoleFor(null)} />
     </>
   );
 }

@@ -36,7 +36,10 @@ export const roleGroup = (role: string): RoleGroup =>
   COMMITTEE_ROLES.includes(role) ? "committee" : STAFF_ROLES.includes(role) ? "staff" : "members";
 
 const ROLE_TONE: Record<RoleGroup, Tone> = { committee: "violet", members: "neutral", staff: "cyan" };
-export const SocietyRoleBadge = ({ role }: { role: string }) => <Badge tone={ROLE_TONE[roleGroup(role)]}>{enumLabel(role)}</Badge>;
+/** `label` — society cha swatahcha role naav (asel tar), rang base role pramane. */
+export const SocietyRoleBadge = ({ role, label }: { role: string; label?: string }) => (
+  <Badge tone={ROLE_TONE[roleGroup(role)]}>{label || enumLabel(role)}</Badge>
+);
 
 /** List var search + filters chi oli. */
 export function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {

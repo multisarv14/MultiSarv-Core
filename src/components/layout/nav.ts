@@ -1,6 +1,8 @@
 import {
   BadgeCheck,
   Banknote,
+  BadgeIndianRupee,
+  IdCard,
   BellRing,
   DoorOpen,
   FileText,
@@ -43,7 +45,9 @@ export type SocietyMenuKey =
   | "visitors"
   | "notices"
   | "complaints"
-  | "contacts";
+  | "contacts"
+  | "roles"
+  | "subscriptions";
 
 export type MenuKey = MarketplaceMenuKey | SocietyMenuKey;
 
@@ -82,6 +86,8 @@ export const SOCIETY_NAV: NavItem[] = [
   { to: "finance", menu: "finance", label: "soc.nav.finance", icon: Wallet, group: "nav.group.finance" },
   { to: "notices", menu: "notices", label: "soc.nav.notices", icon: Megaphone, group: "nav.group.engage" },
   { to: "contacts", menu: "contacts", label: "soc.nav.contacts", icon: PhoneCall, group: "nav.group.engage" },
+  { to: "roles", menu: "roles", label: "soc.nav.roles", icon: IdCard, group: "soc.nav.group.admin" },
+  { to: "subscription", menu: "subscriptions", label: "soc.nav.subscription", icon: BadgeIndianRupee, group: "soc.nav.group.admin" },
 ];
 
 /** Project cha template pramane menus (access matrix, tickets, counts). */
