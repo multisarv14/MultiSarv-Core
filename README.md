@@ -127,6 +127,12 @@ SocietySarv la Cloud Functions nahit — panel app sarkhech thet Firestore la li
 `status`/`resolutionNotes` ani resident `pin`). Core `syncProject` society projects madhe `users` doc lihit nahi.
 SocietySarv backend `deploy.sh` madhe nahi — tyache rules `SocietySarv` repo madhunch deploy kara.
 
+**EverMind sarkha project (structure "AI app"):** data Firestore madhun nahi — panel EverMind app chya
+`/api/admin/*` la (Projects → Edit → **App address**, e.g. `https://evermind.multisarv.com`) core ne dilela
+EverMind ID token pathavto. Menus: Dashboard, Companies, Users, Upgrade requests. EverMind madhe
+`PANEL_ORIGINS` (default `https://core.multisarv.com,http://localhost:5173`) ha site asava lagto.
+Super admin Projects → Edit madhun existing project chi structure badlu shakto.
+
 **Built-in (code madhe, NOAI sarkha):** `src/config/projects.ts` → `BUILT_IN_PROJECTS`, `.env.local` madhe
 `VITE_KEY_*`, ani `core/functions/src/projects.ts` → `BUILT_IN` + `PROJECT_KEY_<ID>` secret.
 

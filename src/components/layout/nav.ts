@@ -1,6 +1,8 @@
 import {
   BadgeCheck,
   Banknote,
+  Building2,
+  CircleArrowUp,
   BellRing,
   DoorOpen,
   FileText,
@@ -45,7 +47,10 @@ export type SocietyMenuKey =
   | "complaints"
   | "contacts";
 
-export type MenuKey = MarketplaceMenuKey | SocietyMenuKey;
+/** EverMind menus — core `EVERMIND_MENUS` ani EverMind `PanelMenu` sobat same. */
+export type EverMindMenuKey = "dashboard" | "companies" | "users" | "upgrades";
+
+export type MenuKey = MarketplaceMenuKey | SocietyMenuKey | EverMindMenuKey;
 
 export interface NavItem {
   to: string;
@@ -84,9 +89,25 @@ export const SOCIETY_NAV: NavItem[] = [
   { to: "contacts", menu: "contacts", label: "soc.nav.contacts", icon: PhoneCall, group: "nav.group.engage" },
 ];
 
+/** EverMind sarkhe projects (`/e/:projectId/...`). */
+export const EVERMIND_NAV: NavItem[] = [
+  { to: "", menu: "dashboard", label: "nav.dashboard", icon: LayoutDashboard, group: "nav.group.overview" },
+  { to: "companies", menu: "companies", label: "em.nav.companies", icon: Building2, group: "nav.group.operations" },
+  { to: "users", menu: "users", label: "nav.users", icon: Users, group: "nav.group.operations" },
+  { to: "upgrades", menu: "upgrades", label: "em.nav.upgrades", icon: CircleArrowUp, group: "nav.group.finance" },
+];
+
 /** Project cha template pramane menus (access matrix, tickets, counts). */
-export const navFor = (p: Pick<ProjectDef, "template"> | null | undefined): NavItem[] =>
-  templateOf(p) === "society" ? SOCIETY_NAV : NAV;
+export const navFor = (p: Pick<ProjectDef, "template"> | null | undefined): NavItem[] => {
+  const tpl = templateOf(p);
+  return tpl === "society" ? SOCIETY_NAV : tpl === "evermind" ? EVERMIND_NAV : NAV;
+};
+
+/** URL (`/e/evermind/companies`) → menu. */
+export const evermindMenuForPath = (pathname: string): MenuKey => {
+  const seg = pathname.split("/")[3] ?? "";
+  return EVERMIND_NAV.find((n) => n.to === seg)?.menu ?? "dashboard";
+};
 
 /** URL (`/s/societysarv/bills`) → menu. */
 export const societyMenuForPath = (pathname: string): MenuKey => {

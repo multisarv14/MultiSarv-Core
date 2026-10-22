@@ -21,10 +21,10 @@ import { ProjectMark } from "@/components/layout/ProjectSwitcher";
 import { rise } from "@/components/ui/motion";
 import { Modal } from "@/components/ui/overlay";
 import { Avatar, Badge, Button, Card, CardHeader, EmptyState, KV } from "@/components/ui/primitives";
-import type { ProjectDef } from "@/config/projects";
+import { projectBase, templateOf, type ProjectDef, type ProjectTemplate } from "@/config/projects";
 import { useProjects } from "@/context/projects";
 import { isSuper, projectMenus, useAdmin } from "@/context/session";
-import { t } from "@/i18n";
+import { t, type MsgKey } from "@/i18n";
 import { date, dateTime } from "@/lib/format";
 import { callCore, errorMessage } from "@/lib/firebase";
 import { copyText } from "@/lib/utils";
@@ -33,6 +33,12 @@ import { LogoPicker } from "./LogoPicker";
 import { ConnectDrawer } from "./ProjectForms";
 import { ProjectDetailsDrawer } from "./ProjectDetailsDrawer";
 import { projectTypeLabel, ProjectStatusBadge } from "./meta";
+
+const STRUCTURE_LABEL: Record<ProjectTemplate, MsgKey> = {
+  marketplace: "projects.typeMarketplace",
+  society: "projects.typeSociety",
+  evermind: "projects.typeEvermind",
+};
 
 const DAY = 86_400_000;
 const parse = (d?: string | null) => (d ? new Date(`${d}T00:00:00`) : null);
@@ -201,7 +207,7 @@ export function ProjectOverview() {
               </Button>
             )}
             {connected ? (
-              <Link to={`/p/${project.id}`}>
+              <Link to={projectBase(project)}>
                 <Button icon={<ArrowRight className="size-3.5" />}>{t("home.openPanel")}</Button>
               </Link>
             ) : (
@@ -299,7 +305,12 @@ export function ProjectOverview() {
                 {connected ? <span className="font-mono text-xs">{project.firebase!.projectId}</span> : <Badge tone="amber">{t("projects.notConnected")}</Badge>}
               </KV>
               <KV label={t("projects.field.region")}>{project.region}</KV>
-              <KV label={t("projects.overview.structure")}>{t("projects.typeMarketplace")}</KV>
+              <KV label={t("projects.overview.structure")}>{t(STRUCTURE_LABEL[templateOf(project)])}</KV>
+              {project.apiUrl && (
+                <KV label={t("projects.field.apiUrl")}>
+                  <span className="font-mono text-xs">{project.apiUrl.replace(/^https?:\/\//, "")}</span>
+                </KV>
+              )}
               <KV label={t("projects.overview.push")}>{project.vapidKey ? t("word.yes") : t("word.no")}</KV>
             </div>
           </Card>

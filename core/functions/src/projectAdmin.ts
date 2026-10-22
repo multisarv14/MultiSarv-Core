@@ -20,6 +20,8 @@ const ref = (id: string) => db.collection("projects").doc(id);
 const STATUSES = ["planning", "rnd", "development", "testing", "active", "onHold"];
 const TYPES = ["webApp", "mobileApp", "webMobile", "marketplace", "website", "internal", "other"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** EverMind sarkhya project cha app (tyacha `/api/admin/*`) — https, kinva local test sathi localhost. */
+const API_URL = /^(https:\/\/[a-z0-9.-]+\.[a-z]{2,}|http:\/\/localhost:\d{2,5})$/;
 /** Logo = chhota data URL (panel 256px la resize karto) — Firestore doc madhe. */
 const LOGO = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
@@ -53,6 +55,11 @@ async function details(d: Details, full: boolean): Promise<Details> {
   if (has("description")) out.description = text("description", 2000);
   if (has("accent")) out.accent = typeof d.accent === "string" && COLOR.test(d.accent) ? d.accent : "#6366f1";
   if (has("region")) out.region = typeof d.region === "string" && REGIONS.includes(d.region) ? d.region : "asia-south1";
+  if (has("apiUrl")) {
+    const v = typeof d.apiUrl === "string" ? d.apiUrl.trim().toLowerCase().replace(/\/+$/, "") : "";
+    if (v && !API_URL.test(v)) fail("invalid-argument", "badApiUrl");
+    out.apiUrl = v || null;
+  }
   if (has("vapidKey")) out.vapidKey = typeof d.vapidKey === "string" && d.vapidKey.trim().length > 40 ? d.vapidKey.trim() : null;
   if (has("status")) {
     if (d.status !== undefined && !STATUSES.includes(d.status as string)) fail("invalid-argument", "badProjectStatus");
@@ -104,7 +111,7 @@ export const createProject = callable<Details & { id?: string; template?: string
     const m = await details(rest, true);
     await ref(id).set({
       ...m,
-      // Template nantar badalta yet nahi — menus / access tyavar.
+      // Structure (menus / access) — nantar fakt super admin `updateProject` ne badalto.
       type: (template as ProjectTemplate | undefined) ?? "marketplace",
       firebase: null,
       connected: false,
@@ -120,15 +127,23 @@ export const createProject = callable<Details & { id?: string; template?: string
 /**
  * Project Overview → Edit (fakt dilele fields). Built-in (NOAI) sathi overlay doc —
  * connection code / env madhech rahte, fakt overview mahiti ithe.
+ * Structure (template) fakt dynamic project cha badalta yeto. Admins che juna structure che menus
+ * `getProjectToken` gaalto (navin structure madhe je aahet tevdhech token madhe); ekhi urla nahi tar
+ * tya admin la project cha access nahi — Module Access madhun navin menus dya.
  */
-export const updateProject = callable<Details & { id?: string }>(async (req) => {
+export const updateProject = callable<Details & { id?: string; template?: string }>(async (req) => {
   const by = await requireSuper(req);
   const id = str(req.data.id, "unknownProject", 2, 30);
   const builtIn = isBuiltIn(id);
   if (!builtIn) await dynamicProject(id);
-  const { id: _id, ...rest } = req.data;
+  const { id: _id, template, ...rest } = req.data;
   const m = await details(rest, false);
   if (builtIn) delete m.region; // built-in cha region code madhe
+  if (template !== undefined) {
+    if (builtIn) fail("failed-precondition", "builtInProject");
+    if (!TEMPLATES.includes(template as ProjectTemplate)) fail("invalid-argument", "badTemplate");
+    m.type = template;
+  }
   if (Object.keys(m).length === 0) return { ok: true };
   await ref(id).set({ ...m, ...(builtIn ? { builtIn: true } : {}), updatedAt: now(), updatedBy: by.uid }, { merge: true });
   await audit(by, "projectUpdate", { uid: id, email: String(m.name ?? id) }, { fields: Object.keys(m) });

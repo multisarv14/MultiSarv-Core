@@ -12,6 +12,7 @@ import { useProjectAuth } from "@/context/auth";
 import { ProjectContext } from "@/context/project";
 import { t } from "@/i18n";
 
+import { EverMindShell } from "./evermind/EverMindShell";
 import { SocietyShell } from "./society/SocietyShell";
 
 
@@ -30,7 +31,7 @@ const back = (
 );
 
 /**
- * `/p/:projectId/*` (NOAI sarkhe) ani `/s/:projectId/*` (SocietySarv sarkhe) — core access
+ * `/p/:projectId/*` (NOAI sarkhe), `/s/:projectId/*` (SocietySarv sarkhe) ani `/e/:projectId/*` (EverMind sarkhe) — core access
  * tapasun project madhe silent login, mag tya template cha shell.
  */
 export function ProjectGate({ template = "marketplace" }: { template?: ProjectTemplate }) {
@@ -91,7 +92,13 @@ export function ProjectGate({ template = "marketplace" }: { template?: ProjectTe
     case "admin":
       return (
         <ProjectContext.Provider value={{ project, admin: auth.user, menus: auth.menus }}>
-          {template === "society" ? <SocietyShell key={project.id} /> : <AppShell />}
+          {template === "society" ? (
+            <SocietyShell key={project.id} />
+          ) : template === "evermind" ? (
+            <EverMindShell key={project.id} />
+          ) : (
+            <AppShell />
+          )}
         </ProjectContext.Provider>
       );
   }

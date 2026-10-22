@@ -41,8 +41,10 @@ interface Form {
   description: string;
   status: ProjectStatus;
   projectType: ProjectType;
-  /** Fakt navin project veli — nantar badalta yet nahi (menus / access tyavar). */
+  /** Structure — built-in (NOAI) cha code madhe; dynamic cha super admin badlu shakto. */
   template: ProjectTemplate;
+  /** EverMind sarkhya structure sathi app cha patta (`/api/admin`). */
+  apiUrl: string;
   startDate: string;
   endDate: string;
   manager: string;
@@ -69,6 +71,7 @@ const fromProject = (p?: ProjectDef | null): Form => ({
   accent: p?.accent ?? COLORS[0],
   region: p?.region ?? REGIONS[0],
   vapidKey: p?.vapidKey ?? "",
+  apiUrl: p?.apiUrl ?? "",
   logo: p?.logo ?? null,
 });
 
@@ -156,7 +159,9 @@ export function ProjectDetailsDrawer({
         team: f.team,
         accent: f.accent,
         ...(project?.builtIn ? {} : { region: f.region }),
-        ...(editing ? { vapidKey: f.vapidKey } : { template: f.template }),
+        ...(editing ? { vapidKey: f.vapidKey } : {}),
+        ...(!editing || (!project?.builtIn && f.template !== templateOf(project)) ? { template: f.template } : {}),
+        ...(f.template === "evermind" || project?.apiUrl ? { apiUrl: f.apiUrl.trim() } : {}),
         ...(f.logo !== (project?.logo ?? null) ? { logo: f.logo } : {}),
       };
       await callCore(editing ? "updateProject" : "createProject", body);
@@ -265,10 +270,10 @@ export function ProjectDetailsDrawer({
               </Field>
               <Field
                 label={t("projects.field.template")}
-                hint={editing ? t("projects.field.templateLocked") : t("projects.field.templateHint")}
+                hint={editing ? t(project?.builtIn ? "projects.field.idLocked" : "projects.field.templateChange") : t("projects.field.templateHint")}
                 className="sm:col-span-2"
               >
-                <Select value={f.template} disabled={editing} onChange={(e) => set("template", e.target.value as ProjectTemplate)}>
+                <Select value={f.template} disabled={!!project?.builtIn} onChange={(e) => set("template", e.target.value as ProjectTemplate)}>
                   {PROJECT_TEMPLATES.map((s) => (
                     <option key={s} value={s}>
                       {t(`projects.template.${s}`)}
@@ -276,6 +281,16 @@ export function ProjectDetailsDrawer({
                   ))}
                 </Select>
               </Field>
+              {f.template === "evermind" && (
+                <Field label={t("projects.field.apiUrl")} hint={t("projects.field.apiUrlHint")} className="sm:col-span-2">
+                  <Input
+                    className="font-mono text-xs"
+                    value={f.apiUrl}
+                    placeholder="https://evermind.multisarv.com"
+                    onChange={(e) => set("apiUrl", e.target.value)}
+                  />
+                </Field>
+              )}
               <Field label={t("projects.field.start")} hint={t("word.optional")}>
                 <Input type="date" value={f.startDate} onChange={(e) => set("startDate", e.target.value)} />
               </Field>
