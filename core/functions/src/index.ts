@@ -123,8 +123,9 @@ export const getProjectToken = callable<{ projectId?: string }>(async (req) => {
   const me = await loadAdmin(uid!);
   if (!me) fail("permission-denied", "noProfile");
   if (!me!.active) fail("permission-denied", "disabled");
-  const menus = menusOf(me, project!.id);
-  if (!menus) fail("permission-denied", "noProjectAccess");
+  // Structure badalli tar juna structure che menus (je ata nahit) token madhe jat nahit.
+  const menus = menusOf(me, project!.id)?.filter((m) => m === "*" || project!.menus.includes(m));
+  if (!menus?.length) fail("permission-denied", "noProjectAccess");
 
   const token = await (await projectAuth(project!)).createCustomToken(panelUid(uid!), {
     admin: true,

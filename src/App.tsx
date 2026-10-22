@@ -31,6 +31,11 @@ const Visitors = page(() => import("./pages/society/Visitors"), "Visitors");
 const Notices = page(() => import("./pages/society/Notices"), "Notices");
 const Complaints = page(() => import("./pages/society/Complaints"), "Complaints");
 const Contacts = page(() => import("./pages/society/Contacts"), "Contacts");
+// EverMind sarkhe projects (`/e/:projectId`)
+const EverMindDashboard = page(() => import("./pages/evermind/EverMindDashboard"), "EverMindDashboard");
+const EmCompanies = page(() => import("./pages/evermind/Companies"), "Companies");
+const EmUsers = page(() => import("./pages/evermind/EmUsers"), "EmUsers");
+const EmUpgrades = page(() => import("./pages/evermind/Upgrades"), "Upgrades");
 
 // Master panel
 const Projects = page(() => import("./pages/master/Projects"), "Projects");
@@ -123,6 +128,17 @@ const router = createBrowserRouter([
           { path: "finance", element: <SocietyFinance /> },
           { path: "notices", element: <Notices /> },
           { path: "contacts", element: <Contacts /> },
+          { path: "*", element: <Navigate to="." replace /> },
+        ],
+      },
+      {
+        path: "/e/:projectId",
+        element: <ProjectGate template="evermind" />,
+        children: [
+          { index: true, element: <EverMindDashboard /> },
+          { path: "companies", element: <EmCompanies /> },
+          { path: "users", element: <EmUsers /> },
+          { path: "upgrades", element: <EmUpgrades /> },
           { path: "*", element: <Navigate to="." replace /> },
         ],
       },

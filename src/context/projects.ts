@@ -1,7 +1,7 @@
 import { collection, onSnapshot } from "firebase/firestore";
 import { useSyncExternalStore } from "react";
 
-import { BUILT_IN_PROJECTS, PROJECT_STATUSES, type ProjectDef } from "@/config/projects";
+import { BUILT_IN_PROJECTS, PROJECT_STATUSES, PROJECT_TEMPLATES, type ProjectDef } from "@/config/projects";
 import { core } from "@/lib/firebase";
 
 import { toDate } from "./session";
@@ -45,8 +45,9 @@ const toDef = (id: string, d: Record<string, unknown>): ProjectDef => ({
   platformFeePercent: 10,
   firebase: d.connected === true && d.firebase ? (d.firebase as ProjectDef["firebase"]) : null,
   // Core `type` — juna / rikama = marketplace (NOAI sarkha).
-  template: d.type === "society" ? "society" : "marketplace",
+  template: PROJECT_TEMPLATES.find((x) => x === d.type) ?? "marketplace",
   databaseId: typeof d.databaseId === "string" && d.databaseId ? d.databaseId : undefined,
+  apiUrl: typeof d.apiUrl === "string" && d.apiUrl ? d.apiUrl : undefined,
   vapidKey: (d.vapidKey as string | null) ?? undefined,
   builtIn: false,
 });

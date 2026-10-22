@@ -43,6 +43,8 @@ export interface ProjectDef {
   databaseId?: string;
   /** Web push (FCM) VAPID public key — Console → Cloud Messaging → Web Push certificates. */
   vapidKey?: string;
+  /** EverMind sarkhya project cha app (`https://evermind.multisarv.com`) — panel tyacha `/api/admin/*` vaparto. */
+  apiUrl?: string;
   /** Code madhe (NOAI); nasel tar super admin ne panel madhun add kelela. */
   builtIn?: boolean;
   /** Project Overview mahiti (core `projects/{id}`) — sagle optional. */
@@ -64,12 +66,14 @@ export interface ProjectDef {
  * Project cha data structure — konte pages / menus. Core `projects.ts` → `TEMPLATES` sobat same.
  *  - marketplace: NOAI (users, tasks, escrows, payouts …)
  *  - society: SocietySarv (`societies/{code}/residents, maintenance_bills …`)
+ *  - evermind: EverMind (companies, users, plans — app chya `/api/admin/*` madhun, Firestore nahi)
  */
-export type ProjectTemplate = "marketplace" | "society";
-export const PROJECT_TEMPLATES: ProjectTemplate[] = ["marketplace", "society"];
+export type ProjectTemplate = "marketplace" | "society" | "evermind";
+export const PROJECT_TEMPLATES: ProjectTemplate[] = ["marketplace", "society", "evermind"];
 export const templateOf = (p: Pick<ProjectDef, "template"> | null | undefined): ProjectTemplate => p?.template ?? "marketplace";
-/** Project shell cha URL — `/p/noai`, `/s/societysarv`. */
-export const projectBase = (p: Pick<ProjectDef, "id" | "template">) => `/${templateOf(p) === "society" ? "s" : "p"}/${p.id}`;
+const SHELL_PREFIX: Record<ProjectTemplate, string> = { marketplace: "p", society: "s", evermind: "e" };
+/** Project shell cha URL — `/p/noai`, `/s/societysarv`, `/e/evermind`. */
+export const projectBase = (p: Pick<ProjectDef, "id" | "template">) => `/${SHELL_PREFIX[templateOf(p)]}/${p.id}`;
 
 export type ProjectStatus = "planning" | "rnd" | "development" | "testing" | "active" | "onHold";
 export type ProjectType = "webApp" | "mobileApp" | "webMobile" | "marketplace" | "website" | "internal" | "other";

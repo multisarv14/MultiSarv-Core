@@ -18,7 +18,7 @@ export interface CoreProject {
   /** Firebase web config + service account jodla aahe. */
   connected: boolean;
   menus: readonly string[];
-  /** Panel che pages konte — NOAI sarkhe (marketplace) kinva SocietySarv sarkhe (society). */
+  /** Panel che pages konte — NOAI sarkhe (marketplace), SocietySarv sarkhe (society) kinva EverMind sarkhe (evermind). */
   template: ProjectTemplate;
   /** Named Firestore database (SocietySarv: `societysarv-app-db`); nasel tar `(default)`. */
   databaseId?: string;
@@ -53,14 +53,22 @@ export const SOCIETY_MENUS = [
   "contacts",
 ] as const;
 
-export type ProjectTemplate = "marketplace" | "society";
-export const TEMPLATES: readonly ProjectTemplate[] = ["marketplace", "society"];
+/**
+ * EverMind structure che menus — panel cha `EVERMIND_NAV`. Data Firestore madhun nahi: EverMind chya
+ * `/api/admin/*` la panel cha ID token jato, ani tithe `menus` claim tapasla jato
+ * (EverMind `src/lib/admin.ts` → `PanelMenu` sobat same).
+ */
+export const EVERMIND_MENUS = ["dashboard", "companies", "users", "upgrades"] as const;
+
+export type ProjectTemplate = "marketplace" | "society" | "evermind";
+export const TEMPLATES: readonly ProjectTemplate[] = ["marketplace", "society", "evermind"];
 
 /** Project doc `type` → template. Juna / rikama = marketplace (NOAI sarkha). */
-export const templateOf = (v: unknown): ProjectTemplate => (v === "society" ? "society" : "marketplace");
+export const templateOf = (v: unknown): ProjectTemplate =>
+  TEMPLATES.includes(v as ProjectTemplate) ? (v as ProjectTemplate) : "marketplace";
 
 export const menusFor = (template: ProjectTemplate): readonly string[] =>
-  template === "society" ? SOCIETY_MENUS : MARKETPLACE_MENUS;
+  template === "society" ? SOCIETY_MENUS : template === "evermind" ? EVERMIND_MENUS : MARKETPLACE_MENUS;
 
 const BUILT_IN: CoreProject[] = [
   { id: "noai", name: "NOAI", builtIn: true, connected: true, template: "marketplace", key: defineSecret("PROJECT_KEY_NOAI"), menus: MARKETPLACE_MENUS },

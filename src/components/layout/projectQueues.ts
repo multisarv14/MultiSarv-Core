@@ -1,6 +1,7 @@
-import { BadgeCheck, Banknote, DoorOpen, FileText, MessageSquareWarning, Scale, type LucideIcon } from "lucide-react";
+import { BadgeCheck, Banknote, CircleArrowUp, DoorOpen, FileText, MessageSquareWarning, Scale, type LucideIcon } from "lucide-react";
 
 import { getQueueCounts } from "@/api/admin";
+import { getOverview } from "@/api/evermind";
 import { getSocietyOverview } from "@/api/society";
 import { templateOf, type ProjectDef } from "@/config/projects";
 import { t } from "@/i18n";
@@ -20,10 +21,18 @@ export interface QueueItem {
  * Control center / Projects page che pending queues — project template pramane.
  * Query key `[project.id, "queues"]` (NOAI cha project shell pan hich vaparto — cache share).
  */
-export const fetchProjectQueues = (p: ProjectDef): Promise<Record<string, number>> =>
-  templateOf(p) === "society" ? getSocietyOverview(p).then((o) => ({ ...o })) : getQueueCounts(p);
+export function fetchProjectQueues(p: ProjectDef): Promise<Record<string, number>> {
+  const tpl = templateOf(p);
+  if (tpl === "society") return getSocietyOverview(p).then((o) => ({ ...o }));
+  // App address nasel tar EverMind shell setup sangto — ithe error / retry nako.
+  if (tpl === "evermind") return p.apiUrl ? getOverview(p).then((o) => ({ upgrades: o.upgradeRequests })) : Promise.resolve({});
+  return getQueueCounts(p);
+}
 
 export function projectQueueItems(p: ProjectDef, data: Record<string, number> | undefined): QueueItem[] {
+  if (templateOf(p) === "evermind") {
+    return [{ label: t("em.nav.upgrades"), icon: CircleArrowUp, value: data?.upgrades, to: "upgrades", menu: "upgrades" }];
+  }
   if (templateOf(p) === "society") {
     return [
       { label: t("soc.nav.complaints"), icon: MessageSquareWarning, value: data?.openComplaints, to: "complaints", menu: "complaints" },
