@@ -36,6 +36,8 @@ const EverMindDashboard = page(() => import("./pages/evermind/EverMindDashboard"
 const EmCompanies = page(() => import("./pages/evermind/Companies"), "Companies");
 const EmUsers = page(() => import("./pages/evermind/EmUsers"), "EmUsers");
 const EmUpgrades = page(() => import("./pages/evermind/Upgrades"), "Upgrades");
+const SocietyRoles = page(() => import("./pages/society/Roles"), "SocietyRoles");
+const Subscription = page(() => import("./pages/society/Subscription"), "Subscription");
 
 // Master panel
 const Projects = page(() => import("./pages/master/Projects"), "Projects");
@@ -128,6 +130,8 @@ const router = createBrowserRouter([
           { path: "finance", element: <SocietyFinance /> },
           { path: "notices", element: <Notices /> },
           { path: "contacts", element: <Contacts /> },
+          { path: "roles", element: <SocietyRoles /> },
+          { path: "subscription", element: <Subscription /> },
           { path: "*", element: <Navigate to="." replace /> },
         ],
       },

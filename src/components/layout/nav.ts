@@ -3,6 +3,8 @@ import {
   Banknote,
   Building2,
   CircleArrowUp,
+  BadgeIndianRupee,
+  IdCard,
   BellRing,
   DoorOpen,
   FileText,
@@ -45,7 +47,9 @@ export type SocietyMenuKey =
   | "visitors"
   | "notices"
   | "complaints"
-  | "contacts";
+  | "contacts"
+  | "roles"
+  | "subscriptions";
 
 /** EverMind menus — core `EVERMIND_MENUS` ani EverMind `PanelMenu` sobat same. */
 export type EverMindMenuKey = "dashboard" | "companies" | "users" | "upgrades";
@@ -87,6 +91,8 @@ export const SOCIETY_NAV: NavItem[] = [
   { to: "finance", menu: "finance", label: "soc.nav.finance", icon: Wallet, group: "nav.group.finance" },
   { to: "notices", menu: "notices", label: "soc.nav.notices", icon: Megaphone, group: "nav.group.engage" },
   { to: "contacts", menu: "contacts", label: "soc.nav.contacts", icon: PhoneCall, group: "nav.group.engage" },
+  { to: "roles", menu: "roles", label: "soc.nav.roles", icon: IdCard, group: "soc.nav.group.admin" },
+  { to: "subscription", menu: "subscriptions", label: "soc.nav.subscription", icon: BadgeIndianRupee, group: "soc.nav.group.admin" },
 ];
 
 /** EverMind sarkhe projects (`/e/:projectId/...`). */

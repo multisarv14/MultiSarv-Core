@@ -13,13 +13,14 @@ import { notifications } from "./messages/notifications";
 import { projectsMsgs } from "./messages/projects";
 import { shell } from "./messages/shell";
 import { society } from "./messages/society";
+import { societyAdmin } from "./messages/societyAdmin";
 import { tasks } from "./messages/tasks";
 import { ticketsMsgs } from "./messages/tickets";
 import { users } from "./messages/users";
 
 export type { Lang } from "./define";
 
-const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin, ...society, ...evermind, ...chatGroups };
+const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin, ...society, ...societyAdmin, ...evermind, ...chatGroups };
 export type MsgKey = keyof typeof messages;
 export type Params = Record<string, string | number>;
 

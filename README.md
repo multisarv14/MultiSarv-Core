@@ -115,16 +115,24 @@ Tickets chya Project dropdown madhe **Multisarv** (master panel) ani sagle proje
 ### SocietySarv sarkha (society management) project
 
 Add project madhe **App structure → Society management** nivda (nantar badalta yet nahi). Pages `/s/<id>`
-khali yetat: Dashboard (sagle societies), Residents (PIN reset), Complaints (status badal), Visitors,
-Maintenance bills, Expenses & income, Notices, Emergency contacts. Code `src/pages/society/`, data `src/api/society.ts`.
+khali yetat: Dashboard (sagle societies), Residents (PIN reset, role badal), Complaints (status badal), Visitors,
+Maintenance bills, Expenses & income, Notices, Emergency contacts, **Member roles** (society che staff roles +
+role history) ani **Subscription** (plans catalogue, society cha plan assign / renew / cancel, app madhun aalelya
+requests). Code `src/pages/society/`, data `src/api/society.ts`.
 
 1. `multisarv-mobileapps` madhe **Web app** register kara (sadhya fakt Android aahe) — tyacha config Connect madhe.
 2. Connect madhe **Firestore database ID** = `societysarv-app-db` (default bharlela asto).
 3. Service account = `multisarv-mobileapps` chi key. Hi key tya project madhlya **sagle** apps la access dete.
 4. `core.multisarv.com` → `multisarv-mobileapps` → Authentication → Authorized domains.
 
-SocietySarv la Cloud Functions nahit — panel app sarkhech thet Firestore la lihito (fakt complaint
-`status`/`resolutionNotes` ani resident `pin`). Core `syncProject` society projects madhe `users` doc lihit nahi.
+SocietySarv la Cloud Functions nahit — panel app sarkhech thet Firestore la lihito (complaint
+`status`/`resolutionNotes`, resident `pin` ani role fields, `roles`, `role_history`, `subscription_plans`,
+`subscription/current`, `subscription_history`, `subscription_requests`). Core `syncProject` society projects madhe `users` doc lihit nahi.
+
+Menus `roles` ani `subscriptions` (core `SOCIETY_MENUS`) — Module Access madhun admins la dya. Plans ani society
+cha plan fakt `subscriptions` menu aslela panel token lihu shakto (SocietySarv `firestore.rules` madhe
+`panelMenu('subscriptions')`), mhanje society app madhun swatahla plan deu shakat nahi. Navin menus sathi core
+functions punha deploy kara (`./deploy.sh core`), ani SocietySarv repo madhun rules.
 SocietySarv backend `deploy.sh` madhe nahi — tyache rules `SocietySarv` repo madhunch deploy kara.
 
 **EverMind sarkha project (structure "AI app"):** data Firestore madhun nahi — panel EverMind app chya
