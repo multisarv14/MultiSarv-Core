@@ -342,28 +342,33 @@ class _BubbleState extends State<Bubble> {
                   padding: EdgeInsets.fromLTRB(media ? 6 : 0, a != null || m.replyTo != null ? 4 : 0, media ? 4 : 0, media ? 2 : 0),
                   child: m.text.isEmpty
                       ? Align(alignment: Alignment.centerRight, child: time)
-                      // Vel text chya shevti — jaga nasel tar khali.
-                      : Wrap(
-                          alignment: WrapAlignment.end,
-                          crossAxisAlignment: WrapCrossAlignment.end,
-                          spacing: 8,
+                      // Vel khali-ujvikade (WhatsApp sarkha). Text chya shevti adrushya "ghost" copy jaga
+                      // rakhte: shevatchya olit jaga asel tar vel tithech, nasel tar apoaap navin olit.
+                      : Stack(
                           children: [
                             Text.rich(
                               TextSpan(
-                                children: _rich(
-                                  m.text,
-                                  TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: mine ? Wa.accentFg : Wa.accent,
-                                    // Mala mention — halka background (WhatsApp sarkha).
-                                    backgroundColor: m.mentions.contains(widget.me) ? Wa.accent.withValues(alpha: .14) : null,
+                                children: [
+                                  ..._rich(
+                                    m.text,
+                                    TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: mine ? Wa.accentFg : Wa.accent,
+                                      // Mala mention — halka background (WhatsApp sarkha).
+                                      backgroundColor: m.mentions.contains(widget.me) ? Wa.accent.withValues(alpha: .14) : null,
+                                    ),
+                                    TextStyle(decoration: TextDecoration.underline, color: mine ? Wa.accentFg : Wa.accent),
                                   ),
-                                  TextStyle(decoration: TextDecoration.underline, color: mine ? Wa.accentFg : Wa.accent),
-                                ),
+                                  WidgetSpan(
+                                    child: ExcludeSemantics(
+                                      child: Padding(padding: const EdgeInsets.only(left: 8), child: Opacity(opacity: 0, child: time)),
+                                    ),
+                                  ),
+                                ],
                               ),
                               style: TextStyle(fontSize: 15.5, height: 1.35, color: mine ? Wa.accentFg : Wa.text(context)),
                             ),
-                            Padding(padding: const EdgeInsets.only(top: 4, bottom: 1), child: time),
+                            Positioned(right: 0, bottom: 0, child: time),
                           ],
                         ),
                 ),

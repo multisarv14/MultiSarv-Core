@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -502,12 +503,15 @@ class _ConversationViewState extends State<ConversationView> {
               const SizedBox(width: 4),
             ],
           ),
-          body: Column(
+          // Wallpaper purna body maage — composer pan tyavar tarangto (WhatsApp sarkha).
+          body: Stack(
+            children: [
+              const Positioned.fill(child: _Backdrop()),
+              Column(
             children: [
               Expanded(
                 child: Stack(
                   children: [
-                    const Positioned.fill(child: _DotPattern()),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: msgs == null
@@ -615,6 +619,8 @@ class _ConversationViewState extends State<ConversationView> {
                 ),
             ],
           ),
+            ],
+          ),
         );
       },
     );
@@ -696,31 +702,58 @@ class _Removed extends StatelessWidget {
   );
 }
 
-/// Halke thipke — chat background la texture (web `.bg-grid` sarkha halka).
-class _DotPattern extends StatelessWidget {
-  const _DotPattern();
+/// Chat wallpaper — web panel cha `Backdrop` (src/components/layout/Backdrop.tsx): halka grid
+/// (`.bg-grid`, kada fade) + teen dhusar rangit dhag (indigo / cyan / violet, `blur-3xl`).
+class _Backdrop extends StatelessWidget {
+  const _Backdrop();
 
   @override
-  Widget build(BuildContext context) => CustomPaint(painter: _Dots(Wa.text(context).withValues(alpha: .045)));
+  Widget build(BuildContext context) => RepaintBoundary(child: CustomPaint(painter: _BackdropPainter(Wa.text(context).withValues(alpha: .06))));
 }
 
-class _Dots extends CustomPainter {
-  _Dots(this.color);
-  final Color color;
+class _BackdropPainter extends CustomPainter {
+  _BackdropPainter(this.line);
+  final Color line;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = color;
-    const gap = 22.0;
-    for (var y = gap / 2; y < size.height; y += gap) {
-      for (var x = gap / 2; x < size.width; x += gap) {
-        canvas.drawCircle(Offset(x, y), 1.1, p);
-      }
+    final w = size.width, h = size.height;
+    canvas.clipRect(Offset.zero & size);
+
+    // `.bg-grid` — 44px resha, mask: ellipse 70% × 60% at 50% 30%, 40% nantar fade.
+    canvas.saveLayer(Offset.zero & size, Paint());
+    final p = Paint()
+      ..color = line
+      ..strokeWidth = 1;
+    for (var x = 0.0; x < w; x += 44) {
+      canvas.drawLine(Offset(x + .5, 0), Offset(x + .5, h), p);
     }
+    for (var y = 0.0; y < h; y += 44) {
+      canvas.drawLine(Offset(0, y + .5), Offset(w, y + .5), p);
+    }
+    canvas
+      ..save()
+      ..translate(w * .5, h * .3)
+      ..scale(w * .7, h * .6)
+      ..drawRect(
+        const Rect.fromLTRB(-10, -10, 10, 10),
+        Paint()
+          ..blendMode = BlendMode.dstIn
+          ..shader = ui.Gradient.radial(Offset.zero, 1, const [Colors.black, Colors.black, Colors.transparent], const [0, .4, 1]),
+      )
+      ..restore()
+      ..restore();
+
+    // `animate-aurora` dhag — web chya jaga / akar / rang.
+    void blob(Offset c, double d, Color color) =>
+        canvas.drawCircle(c, d / 2, Paint()..color = color..maskFilter = const MaskFilter.blur(BlurStyle.normal, 32));
+    blob(const Offset(-128 + 280, -160 + 280), 560, const Color(0xFF6366F1).withValues(alpha: .25));
+    blob(Offset(w + 160 - 260, h / 3 + 260), 520, const Color(0xFF22D3EE).withValues(alpha: .20));
+    blob(Offset(w / 3 + 240, h + 192 - 240), 480, const Color(0xFF8B5CF6).withValues(alpha: .20));
   }
 
   @override
-  bool shouldRepaint(_Dots old) => old.color != color;
+  bool shouldRepaint(_BackdropPainter old) => old.line != line;
 }
 
 class _SkeletonThread extends StatelessWidget {

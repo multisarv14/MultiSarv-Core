@@ -683,28 +683,28 @@ export function Conversation({
             }}
           />
         )}
+        {/* Footer pan wallpaper var — composer chya maage patti nahi. */}
+        {selected ? (
+          <SelectionBar
+            count={picked.length}
+            allStarred={picked.length > 0 && picked.every((m) => m.starred)}
+            onCopy={copySelected}
+            onForward={forwardSelected}
+            onStar={() => {
+              const all = picked.every((m) => m.starred);
+              star(picked.filter((m) => !m.deleted && !m.system).map((m) => m.id), !all).then(() => setSelected(null));
+            }}
+            onDelete={() => setDeleting(picked.map((m) => m.id))}
+            onCancel={() => setSelected(null)}
+          />
+        ) : left ? (
+          <p className="relative border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.notMember")}</p>
+        ) : blocked ? (
+          <p className="relative border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.onlyAdminsCanSend")}</p>
+        ) : (
+          <Composer me={me} reply={reply} onCancelReply={() => setReply(null)} onSend={onSend} quote={quoteText} mentionables={mentionables} />
+        )}
       </div>
-
-      {selected ? (
-        <SelectionBar
-          count={picked.length}
-          allStarred={picked.length > 0 && picked.every((m) => m.starred)}
-          onCopy={copySelected}
-          onForward={forwardSelected}
-          onStar={() => {
-            const all = picked.every((m) => m.starred);
-            star(picked.filter((m) => !m.deleted && !m.system).map((m) => m.id), !all).then(() => setSelected(null));
-          }}
-          onDelete={() => setDeleting(picked.map((m) => m.id))}
-          onCancel={() => setSelected(null)}
-        />
-      ) : left ? (
-        <p className="border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.notMember")}</p>
-      ) : blocked ? (
-        <p className="border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.onlyAdminsCanSend")}</p>
-      ) : (
-        <Composer me={me} reply={reply} onCancelReply={() => setReply(null)} onSend={onSend} quote={quoteText} mentionables={mentionables} />
-      )}
 
       {menu && (
         <MessageMenu

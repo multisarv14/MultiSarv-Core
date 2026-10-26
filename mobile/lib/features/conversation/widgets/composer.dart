@@ -60,7 +60,7 @@ class _ComposerState extends State<Composer> {
     super.initState();
     _text.addListener(() => setState(() {}));
     _focus.addListener(() {
-      // Focus border sathi rebuild; keyboard ughadla ki emoji band.
+      // Keyboard ughadla ki emoji band.
       setState(() {
         if (_focus.hasFocus) _emoji = false;
       });
@@ -307,19 +307,15 @@ class _ComposerState extends State<Composer> {
     // `@` lihila — group members (shodh).
     final q = widget.members.isEmpty || _recording ? null : mentionQuery(_text.value);
     final matches = q == null ? const <MentionMember>[] : mentionMatches(widget.members, q.query);
-    return Container(
-      decoration: BoxDecoration(
-        color: Wa.surface(context),
-        border: Border(top: BorderSide(color: Wa.border(context))),
-      ),
-      child: SafeArea(
+    // Varti resha / patti nahi — pill ani button chat wallpaper var tarangtat (WhatsApp sarkha).
+    return SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (q != null && matches.isNotEmpty) _mentionList(matches, q),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -351,7 +347,6 @@ class _ComposerState extends State<Composer> {
               ),
           ],
         ),
-      ),
     );
   }
 
@@ -359,10 +354,11 @@ class _ComposerState extends State<Composer> {
     final reply = widget.reply;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
+      // WhatsApp pill — bhovti resha nahi, fakt halki saavli.
       decoration: BoxDecoration(
-        color: Wa.surface2(context),
+        color: Wa.surface(context),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _focus.hasFocus ? Wa.accent.withValues(alpha: .5) : Wa.border(context)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 3, offset: const Offset(0, 1))],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -429,9 +425,9 @@ class _ComposerState extends State<Composer> {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        color: Wa.surface2(context),
+        color: Wa.surface(context),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: .35)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 3, offset: const Offset(0, 1))],
       ),
       child: Row(
         children: [

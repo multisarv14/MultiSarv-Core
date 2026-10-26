@@ -30,7 +30,7 @@ class Wa {
   static Color mine(BuildContext c) => accent;
   // Web: `bg-surface-2/60` + border.
   static Color theirs(BuildContext c) => surface2(c);
-  // Web composer: `bg-surface-2/50`, pill `bg-surface`.
+  // Web composer: patti nahi (wallpaper), pill `bg-surface`.
   static Color bar(BuildContext c) => surface2(c);
   static Color pill(BuildContext c) => surface(c);
   static Color muted(BuildContext c) => _onAccent(c) ? accentFg.withValues(alpha: .8) : (_dark(c) ? const Color(0xFF8A91A6) : const Color(0xFF646B80));

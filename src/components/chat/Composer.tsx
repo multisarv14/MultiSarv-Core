@@ -189,7 +189,8 @@ export function Composer({
   const pillIcon = `${pillBase} mb-1`;
 
   return (
-    <div className="relative bg-surface-2/50 px-2 pt-2 pb-2">
+    // Patti / resha nahi — pill ani button chat wallpaper var (WhatsApp sarkha).
+    <div className="relative px-2 pt-1 pb-2">
       {emoji && <EmojiPicker onPick={insert} onClose={() => setEmoji(false)} />}
       {matches.length > 0 && (
         <ul role="listbox" className="animate-pop absolute bottom-full left-2 z-20 mb-2 w-[min(18rem,calc(100%-1rem))] overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-pop">

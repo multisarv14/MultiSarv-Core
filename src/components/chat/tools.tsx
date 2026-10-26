@@ -423,7 +423,7 @@ export function SelectionBar({
     </Button>
   );
   return (
-    <div className="flex items-center gap-1 border-t border-border bg-surface-2/50 px-2 py-2">
+    <div className="relative flex items-center gap-1 border-t border-border bg-surface-2/50 px-2 py-2">
       <Button variant="ghost" size="icon" onClick={onCancel} aria-label={t("act.cancel")}>
         <X className="size-4" />
       </Button>
