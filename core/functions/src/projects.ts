@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
-import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { defineSecret } from "firebase-functions/params";
@@ -153,3 +153,22 @@ export async function projectAuth(project: CoreProject): Promise<Auth> {
 
 /** Target project madhe admin cha uid — app users pasun vegla disava mhanun prefix. */
 export const panelUid = (uid: string) => `ms_${uid}`;
+
+/**
+ * Connected project chi key jo ya Firebase project sathi aahe tyacha Admin app.
+ * GarageGuru vegla panel project nahi — to `multisarv-mobileapps` madhe rahto, ani tya project chi
+ * key SocietySarv Connect kartana aadhich `projectKeys` madhe aahe; tich key ithe vaparto.
+ */
+export async function appForFirebaseProject(firebaseProjectId: string): Promise<App | null> {
+  const name = `fb-${firebaseProjectId}`;
+  const suffix = `@${firebaseProjectId}.iam.gserviceaccount.com`;
+  const snap = await db().collection("projectKeys").get();
+  for (const doc of snap.docs) {
+    if (!String(doc.get("clientEmail") ?? "").endsWith(suffix)) continue;
+    const json = JSON.parse(decryptKey(doc.get("enc")));
+    if (json.project_id !== firebaseProjectId) continue;
+    const appName = `${name}-${doc.id}-${doc.get("keyVersion") ?? 0}`;
+    return getApps().find((a) => a.name === appName) ?? initializeApp({ credential: cert(json), projectId: json.project_id }, appName);
+  }
+  return null;
+}
