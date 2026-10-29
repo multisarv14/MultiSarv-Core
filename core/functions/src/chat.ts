@@ -478,6 +478,42 @@ export const deleteChatMessage = callable<{ chatId?: string; id?: string; forEve
   return { ok: true };
 });
 
+/** WhatsApp sarkha — pathavlyapasun itkya vel edit. */
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Message edit — fakt swatahcha (call / system / forwarded / deleted nahi), `EDIT_WINDOW_MS` aat.
+ * Text (ani group mentions) badalto, `editedAt` lavto; shevatcha message asel tar list cha preview pan.
+ */
+export const editChatMessage = callable<{ chatId?: string; id?: string; text?: string; mentions?: string[] }>(async (req) => {
+  const { uid } = await requireCoreUser(req);
+  const chatId = str(req.data.chatId, "chatDenied", 3, 300);
+  const id = str(req.data.id, "chatBadMessage", 1, 64);
+  const { ref: chat, data, group } = await loadChat(chatId, uid);
+  const ref = chat.collection("messages").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) fail("not-found", "chatBadMessage");
+
+  const m = snap.data()!;
+  if (m.by !== uid || m.kind === "system" || m.kind === "call" || m.deleted === true || m.forwarded === true) fail("permission-denied", "chatEditDenied");
+  const sentAt = (m.at as FirebaseFirestore.Timestamp | undefined)?.toMillis() ?? 0;
+  if (Date.now() - sentAt > EDIT_WINDOW_MS) fail("failed-precondition", "chatEditExpired");
+
+  const text = typeof req.data.text === "string" ? req.data.text.trim() : "";
+  if (text.length > 4000) fail("invalid-argument", "chatTooLong");
+  if (!text && !m.attachment) fail("invalid-argument", "chatEmpty");
+  if (text === m.text) return { ok: true };
+
+  const members = group ? (data?.members ?? []) : [];
+  const mentions = uidList(req.data.mentions).filter((x) => x !== uid && members.includes(x)).slice(0, 50);
+  await ref.update({ text, mentions, editedAt: now() });
+  await db.runTransaction(async (tx) => {
+    const c = await tx.get(chat);
+    if (c.get("last.id") === id) tx.update(chat, { "last.text": text.slice(0, 140), "last.mentions": mentions, "last.edited": true });
+  });
+  return { ok: true };
+});
+
 // ── Groups ───────────────────────────────────────────────────────────
 
 const groupDescription = (v: unknown) => {

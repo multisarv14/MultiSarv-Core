@@ -11,6 +11,7 @@ import {
   listChatUsers,
   markChatRead,
   notifyModeOf,
+  editChatMessage,
   reactChatMessage,
   receiptStatus,
   sendChatMessage,
@@ -188,8 +189,11 @@ export function ChatList({
                 ? r.kind === "user"
                   ? (r.user.role ?? r.user.email)
                   : ""
-                : (c.lastSystem ? "" : c.lastBy === me ? `${t("chat.you")}: ` : r.kind === "group" && c.lastByName ? `${c.lastByName}: ` : "") +
-                  (c.lastText || (c.lastAttachment ? `📎 ${c.lastAttachment}` : ""));
+                : c.lastDeleted
+                  ? `🚫 ${t("chat.deleted")}`
+                  : (c.lastSystem ? "" : c.lastBy === me ? `${t("chat.you")}: ` : r.kind === "group" && c.lastByName ? `${c.lastByName}: ` : "") +
+                    // Mobile `ChatSummary.preview` sarkha — voice la "🎤" yeto.
+                    (c.lastText || (c.lastAttachment === "🎤" ? `🎤 ${t("chat.voice")}` : c.lastAttachment ? `📎 ${c.lastAttachment}` : ""));
             return (
               <li key={r.key}>
                 <button
@@ -368,6 +372,8 @@ export function Conversation({
   const blocked = !!g?.onlyAdminsSend && !g.admins.includes(me);
 
   const [reply, setReply] = useState<ChatMessage | null>(null);
+  /** "Edit" nivadlela swatahcha message — composer madhe tyacha text. */
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [selected, setSelected] = useState<string[] | null>(null);
   const [search, setSearch] = useState(false);
   const [menu, setMenu] = useState<{ m: ChatMessage; x: number; y: number } | null>(null);
@@ -510,6 +516,18 @@ export function Conversation({
     }
   };
 
+  const onEdit = async (text: string, mentions: string[]) => {
+    if (!editing) return false;
+    try {
+      await editChatMessage(chatId, editing.id, text, mentions);
+      setEditing(null);
+      return true;
+    } catch (err) {
+      toast.error(errorMessage(err));
+      return false;
+    }
+  };
+
   // ── ✓ / ✓✓ — pratyek recipient vegla (message var live) ──
   const receiptOf = (m: ChatMessage): Receipt | null => (m.by !== me || m.system || m.call ? null : receiptStatus(m, chat));
 
@@ -545,7 +563,8 @@ export function Conversation({
       .catch((err) => toast.error(errorMessage(err)));
 
   const onAction = (m: ChatMessage, a: MenuAction) => {
-    if (a === "reply") setReply(m);
+    if (a === "reply") (setEditing(null), setReply(m));
+    else if (a === "edit") (setReply(null), setEditing(m));
     else if (a === "copy") copy(m.text);
     else if (a === "forward") setForwardIds([m.id]);
     else if (a === "star") star([m.id], !m.starred);
@@ -702,7 +721,17 @@ export function Conversation({
         ) : blocked ? (
           <p className="relative border-t border-border bg-surface-2/50 px-4 py-3 text-center text-xs text-muted">{t("group.onlyAdminsCanSend")}</p>
         ) : (
-          <Composer me={me} reply={reply} onCancelReply={() => setReply(null)} onSend={onSend} quote={quoteText} mentionables={mentionables} />
+          <Composer
+            me={me}
+            reply={reply}
+            onCancelReply={() => setReply(null)}
+            onSend={onSend}
+            quote={quoteText}
+            mentionables={mentionables}
+            editing={editing}
+            onCancelEdit={() => setEditing(null)}
+            onEdit={onEdit}
+          />
         )}
       </div>
 

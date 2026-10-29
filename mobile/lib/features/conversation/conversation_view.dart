@@ -184,7 +184,30 @@ class ConversationViewModel extends BaseViewModel with WidgetsBindingObserver {
 
   void setReply(ChatMessage? m) {
     reply = m;
+    if (m != null) editing = null;
     notifyListeners();
+  }
+
+  /// "Edit" nivadlela swatahcha message — composer madhe tyacha text.
+  ChatMessage? editing;
+
+  void setEditing(ChatMessage? m) {
+    editing = m;
+    if (m != null) reply = null;
+    notifyListeners();
+  }
+
+  /// null = save zala; nahi tar error text.
+  Future<String?> saveEdit(String text, List<String> mentions) async {
+    final m = editing;
+    if (m == null) return null;
+    try {
+      await _repo.editMessage(chatId, m.id, text, isGroup ? mentions : const []);
+      setEditing(null);
+      return null;
+    } catch (e) {
+      return errorText(e);
+    }
   }
 
   /// null = gela; nahi tar error text (composer text / file parat theto).
@@ -315,6 +338,8 @@ class _ConversationViewState extends State<ConversationView> {
 
   Future<void> _onAction(ConversationViewModel vm, ChatMessage m, MsgAction a) async {
     switch (a) {
+      case MsgAction.edit:
+        vm.setEditing(m);
       case MsgAction.forward:
         if (await showForwardSheet(context, chatId: vm.chatId, me: vm.me, ids: [m.id])) vm.clearSelection();
       case MsgAction.star:
@@ -612,6 +637,9 @@ class _ConversationViewState extends State<ConversationView> {
                   members: vm.mentionMembers,
                   reply: vm.reply,
                   onCancelReply: () => vm.setReply(null),
+                  editing: vm.editing,
+                  onCancelEdit: () => vm.setEditing(null),
+                  onEdit: vm.saveEdit,
                   onSend: (o) {
                     if (_scroll.hasClients && _scroll.offset > 0) _toBottom();
                     return vm.send(o);

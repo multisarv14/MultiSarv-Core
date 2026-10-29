@@ -237,6 +237,7 @@ class ChatMessage {
     this.call,
     this.reactions = const {},
     this.forwarded = false,
+    this.edited = false,
     this.starred = false,
     this.deliveredTo = const {},
     this.readBy = const {},
@@ -260,6 +261,7 @@ class ChatMessage {
       call: x['kind'] == 'call' && x['call'] is Map ? CallInfo.fromMap(x['call'] as Map) : null,
       reactions: ((x['reactions'] as Map?) ?? const {}).map((k, v) => MapEntry('$k', '$v')),
       forwarded: x['forwarded'] == true,
+      edited: x['editedAt'] != null && x['deleted'] != true,
       deliveredTo: _stamps(x['deliveredTo']),
       readBy: _stamps(x['readBy']),
     );
@@ -277,6 +279,15 @@ class ChatMessage {
   /// uid → emoji.
   final Map<String, String> reactions;
   final bool forwarded;
+
+  /// Pathavlyanantar badallela ("Edited").
+  final bool edited;
+
+  /// Core `chat.ts` `EDIT_WINDOW_MS` sobat same (WhatsApp sarkha).
+  static const editWindow = Duration(minutes: 15);
+
+  /// Swatahcha sadha message, ajun vel ahe — "Edit" dakhva (server pan tapasto).
+  bool canEdit(String me) => by == me && !deleted && !system && call == null && !forwarded && at != null && DateTime.now().difference(at!) < editWindow;
 
   /// Mi star kelela (fakt majha — `admins/{me}/starred`).
   final bool starred;
@@ -297,6 +308,7 @@ class ChatMessage {
     call: call,
     reactions: reactions,
     forwarded: forwarded,
+    edited: edited,
     starred: v,
     deliveredTo: deliveredTo,
     readBy: readBy,

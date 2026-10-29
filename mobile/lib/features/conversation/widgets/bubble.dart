@@ -15,7 +15,7 @@ import 'mentions.dart';
 import 'voice_note.dart';
 
 /// Long-press menu che actions (web sarkhe) — screen (conversation) karto.
-enum MsgAction { forward, star, select, share, info, reactions }
+enum MsgAction { edit, forward, star, select, share, info, reactions }
 
 /// WhatsApp sarkhe jhatpat reactions.
 const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -133,6 +133,8 @@ class _BubbleState extends State<Bubble> {
                 ),
               if (!m.deleted)
                 _MenuItem(icon: Icons.reply_rounded, label: 'Reply', onTap: () => act(ctx, widget.onReply)),
+              if (widget.onAction != null && m.canEdit(widget.me))
+                _MenuItem(icon: Icons.edit_outlined, label: 'Edit', onTap: () => act(ctx, () => widget.onAction!(MsgAction.edit))),
               if (!m.deleted && m.text.isNotEmpty)
                 _MenuItem(
                   icon: Icons.copy_rounded,
@@ -252,6 +254,7 @@ class _BubbleState extends State<Bubble> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (m.starred) ...[Icon(Icons.star_rounded, size: 12, color: timeColor), const SizedBox(width: 2)],
+        if (m.edited) ...[Text('Edited', style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: timeColor)), const SizedBox(width: 4)],
         Text(m.at == null ? '' : DateFormat.jm().format(m.at!), style: TextStyle(fontSize: 10.5, color: timeColor)),
         if (r != null && !m.deleted) ...[
           const SizedBox(width: 3),

@@ -10,6 +10,7 @@ import {
   Info,
   Loader2,
   Mic,
+  Pencil,
   Phone,
   PhoneIncoming,
   PhoneMissed,
@@ -27,7 +28,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-import { attachmentUrl, type ChatAttachment, type ChatMessage } from "@/api/chat";
+import { attachmentUrl, canEditMessage, type ChatAttachment, type ChatMessage } from "@/api/chat";
 import { Badge } from "@/components/ui/primitives";
 import { t } from "@/i18n";
 import { dateTime } from "@/lib/format";
@@ -172,6 +173,7 @@ export function Bubble({ m, me, names, group, receipt, selecting, selected, onSe
   const stampInner = (
     <>
       {m.starred && <Star className="size-2.5 fill-current" />}
+      {m.edited && <span className="italic">{t("chat.edited")}</span>}
       {clock(m.at)}
       {mine && receipt && !m.deleted && <Ticks status={receipt} mine />}
     </>
@@ -411,7 +413,7 @@ function ReactionChips({
 
 // ── Actions menu ─────────────────────────────────────────────────────
 
-export type MenuAction = "reply" | "copy" | "forward" | "star" | "select" | "share" | "info" | "delete";
+export type MenuAction = "reply" | "edit" | "copy" | "forward" | "star" | "select" | "share" | "info" | "delete";
 
 /** Click / long-press javal — jhatpat reactions + actions. */
 export function MessageMenu({
@@ -466,6 +468,7 @@ export function MessageMenu({
 
   const items: { a: MenuAction; icon: ReactNode; label: string; danger?: boolean; show: boolean }[] = [
     { a: "reply", icon: <Reply className="size-4" />, label: t("chat.reply"), show: !m.deleted },
+    { a: "edit", icon: <Pencil className="size-4" />, label: t("chat.edit"), show: canEditMessage(m, me) },
     { a: "copy", icon: <Copy className="size-4" />, label: t("chat.copy"), show: !m.deleted && !!m.text },
     { a: "forward", icon: <Forward className="size-4" />, label: t("chat.forward"), show: !m.deleted },
     { a: "star", icon: m.starred ? <StarOff className="size-4" /> : <Star className="size-4" />, label: m.starred ? t("chat.unstar") : t("chat.star"), show: !m.deleted },

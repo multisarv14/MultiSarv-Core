@@ -1,4 +1,4 @@
-import { AudioLines, Camera, FileText, Keyboard, Loader2, Mic, Paperclip, Reply, SendHorizontal, Smile, Trash2, X } from "lucide-react";
+import { AudioLines, Camera, Check, FileText, Keyboard, Loader2, Mic, Paperclip, Pencil, Reply, SendHorizontal, Smile, Trash2, X } from "lucide-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -40,6 +40,9 @@ export function Composer({
   onSend,
   quote,
   mentionables,
+  editing = null,
+  onCancelEdit,
+  onEdit,
 }: {
   me: string;
   reply: ChatMessage | null;
@@ -49,6 +52,11 @@ export function Composer({
   quote: (m: ChatMessage) => string;
   /** Group members (mi sodun) — `@` var yadi. */
   mentionables?: Mentionable[];
+  /** Swatahcha message edit — text input madhe, send = save. */
+  editing?: ChatMessage | null;
+  onCancelEdit?: () => void;
+  /** true = save zala. */
+  onEdit?: (text: string, mentions: string[]) => Promise<boolean>;
 }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -123,6 +131,25 @@ export function Composer({
     if (reply) input.current?.focus();
   }, [reply]);
 
+  // Edit — juna text input madhe (cursor shevti); edit sampla ki rikama.
+  const editingId = editing?.id ?? null;
+  useLayoutEffect(() => {
+    if (!editing) return setText("");
+    setText(editing.text);
+    setFile(null);
+    const el = input.current;
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(editing.text.length, editing.text.length);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId]);
+
+  const cancelEdit = () => {
+    setText("");
+    onCancelEdit?.();
+  };
+
   const pick = (f: File | undefined) => {
     if (fileInput.current) fileInput.current.value = "";
     if (cameraInput.current) cameraInput.current.value = "";
@@ -147,6 +174,19 @@ export function Composer({
 
   const send = async () => {
     const body = text.trim();
+    if (editing) {
+      if (sending || (!body && !editing.attachment) || !onEdit) return;
+      dictation.stop();
+      setEmoji(false);
+      const mentions = (mentionables ?? []).filter((m) => body.includes(`@${m.name}`)).map((m) => m.uid);
+      setSending(true);
+      try {
+        await onEdit(body, mentions);
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     if (sending || (!body && !file)) return;
     dictation.stop();
     setEmoji(false);
@@ -179,8 +219,8 @@ export function Composer({
     await deliver({ text: "", file: r.file, duration: r.duration });
   };
 
-  const empty = !text.trim() && !file;
-  const showMic = empty && recordingSupported;
+  const empty = !text.trim() && !file && !editing?.attachment;
+  const showMic = empty && recordingSupported && !editing;
 
   const roundBtn =
     "flex size-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white shadow-sm transition hover:brightness-110 active:scale-95 disabled:opacity-60";
@@ -229,7 +269,19 @@ export function Composer({
       ) : (
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1 overflow-hidden rounded-3xl bg-surface shadow-sm">
-            {reply && (
+            {editing && (
+              <div className="m-1.5 mb-0 flex items-start gap-2 rounded-xl border-l-4 border-[#00a884] bg-surface-2 px-3 py-1.5 text-xs">
+                <Pencil className="mt-0.5 size-3.5 shrink-0 text-[#00a884]" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-[#00a884]">{t("chat.editing")}</p>
+                  <p className="truncate text-muted">{quote(editing)}</p>
+                </div>
+                <button type="button" onClick={cancelEdit} className="shrink-0 text-muted hover:text-text" aria-label={t("act.cancel")}>
+                  <X className="size-4" />
+                </button>
+              </div>
+            )}
+            {reply && !editing && (
               <div className="m-1.5 mb-0 flex items-start gap-2 rounded-xl border-l-4 border-[#00a884] bg-surface-2 px-3 py-1.5 text-xs">
                 <Reply className="mt-0.5 size-3.5 shrink-0 text-[#00a884]" />
                 <div className="min-w-0 flex-1">
@@ -299,6 +351,11 @@ export function Composer({
                       return;
                     }
                   }
+                  if (e.key === "Escape" && editing) {
+                    e.preventDefault();
+                    cancelEdit();
+                    return;
+                  }
                   if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !coarse()) {
                     e.preventDefault();
                     send();
@@ -316,11 +373,13 @@ export function Composer({
                   <AudioLines className="size-5" />
                 </button>
               )}
-              <button type="button" className={cn(pillIcon, "-rotate-45")} title={t("chat.attach")} aria-label={t("chat.attach")} onClick={() => fileInput.current?.click()}>
-                <Paperclip className="size-5" />
-              </button>
+              {!editing && (
+                <button type="button" className={cn(pillIcon, "-rotate-45")} title={t("chat.attach")} aria-label={t("chat.attach")} onClick={() => fileInput.current?.click()}>
+                  <Paperclip className="size-5" />
+                </button>
+              )}
               {/* Camera fakt phone var (WhatsApp sarkha) — text lihitana lapto. */}
-              {!text && (
+              {!text && !editing && (
                 <button type="button" className={cn(pillIcon, "pointer-fine:hidden")} title={t("chat.camera")} aria-label={t("chat.camera")} onClick={() => cameraInput.current?.click()}>
                   <Camera className="size-5" />
                 </button>
@@ -335,8 +394,8 @@ export function Composer({
               <Mic className="size-5" />
             </button>
           ) : (
-            <button type="button" onClick={send} disabled={sending || empty} className={roundBtn} aria-label={t("chat.send")}>
-              {sending ? <Loader2 className="size-5 animate-spin" /> : <SendHorizontal className="size-5" />}
+            <button type="button" onClick={send} disabled={sending || empty} className={roundBtn} aria-label={editing ? t("chat.saveEdit") : t("chat.send")}>
+              {sending ? <Loader2 className="size-5 animate-spin" /> : editing ? <Check className="size-5" /> : <SendHorizontal className="size-5" />}
             </button>
           )}
         </div>

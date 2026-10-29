@@ -172,6 +172,10 @@ class ChatRepository {
   Future<void> deleteMessage(String chatId, String id, {required bool forEveryone}) =>
       callCore<Object?>('deleteChatMessage', {'chatId': chatId, 'id': id, 'forEveryone': forEveryone});
 
+  /// Swatahcha message edit (15 min aat — server tapasto).
+  Future<void> editMessage(String chatId, String id, String text, List<String> mentions) =>
+      callCore<Object?>('editChatMessage', {'chatId': chatId, 'id': id, 'text': text, 'mentions': mentions});
+
   /// Navin group → chat id.
   Future<String> createGroup(String name, List<String> members, {String description = ''}) async {
     final r = await callCore<Map<Object?, Object?>>('createChatGroup', {'name': name, 'members': members, 'description': description});

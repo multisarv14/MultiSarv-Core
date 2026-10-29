@@ -24,7 +24,17 @@ const maxRecord = Duration(minutes: 5);
 
 /// WhatsApp sarkha input: gol pill (emoji · text · attach · camera) + baju la gol mic / send.
 class Composer extends StatefulWidget {
-  const Composer({super.key, required this.me, required this.reply, required this.onCancelReply, required this.onSend, this.members = const []});
+  const Composer({
+    super.key,
+    required this.me,
+    required this.reply,
+    required this.onCancelReply,
+    required this.onSend,
+    this.members = const [],
+    this.editing,
+    this.onCancelEdit,
+    this.onEdit,
+  });
 
   final String me;
 
@@ -35,6 +45,13 @@ class Composer extends StatefulWidget {
 
   /// null = gela; nahi tar error text (input parat bharto).
   final Future<String?> Function(Outgoing) onSend;
+
+  /// Swatahcha message edit — text input madhe, send = save.
+  final ChatMessage? editing;
+  final VoidCallback? onCancelEdit;
+
+  /// null = save zala; nahi tar error text.
+  final Future<String?> Function(String text, List<String> mentions)? onEdit;
 
   @override
   State<Composer> createState() => _ComposerState();
@@ -71,6 +88,18 @@ class _ComposerState extends State<Composer> {
   void didUpdateWidget(Composer old) {
     super.didUpdateWidget(old);
     if (widget.reply != null && widget.reply != old.reply) _focus.requestFocus();
+    // Edit suru — juna text (cursor shevti); sampla / radd — rikama.
+    final e = widget.editing;
+    if (e?.id != old.editing?.id) {
+      if (e != null) {
+        _text.value = TextEditingValue(text: e.text, selection: TextSelection.collapsed(offset: e.text.length));
+        _file = null;
+        _fileName = null;
+        _focus.requestFocus();
+      } else {
+        _text.clear();
+      }
+    }
   }
 
   @override
@@ -84,7 +113,7 @@ class _ComposerState extends State<Composer> {
 
   void _toast(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-  bool get _empty => _text.text.trim().isEmpty && _file == null;
+  bool get _empty => _text.text.trim().isEmpty && _file == null && widget.editing?.attachment == null;
 
   Future<void> _deliver(Outgoing o) async {
     setState(() => _sending = true);
@@ -104,6 +133,16 @@ class _ComposerState extends State<Composer> {
 
   Future<void> _send() async {
     final body = _text.text.trim();
+    final editing = widget.editing;
+    if (editing != null) {
+      if (_sending || _empty || widget.onEdit == null) return;
+      setState(() => _sending = true);
+      final err = await widget.onEdit!(body, mentionsIn(body, widget.members));
+      if (!mounted) return;
+      setState(() => _sending = false);
+      if (err != null) _toast(err);
+      return;
+    }
     if (_sending || _empty) return;
     final o = Outgoing(text: body, file: _file, fileName: _fileName, mentions: mentionsIn(body, widget.members));
     _text.clear();
@@ -366,7 +405,15 @@ class _ComposerState extends State<Composer> {
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: easeOutSoft,
-            child: Column(children: [if (reply != null) _replyPreview(reply), if (_file != null) _filePreview()]),
+            child: Column(
+              children: [
+                if (widget.editing != null)
+                  _replyPreview(widget.editing!, edit: true)
+                else if (reply != null)
+                  _replyPreview(reply),
+                if (_file != null) _filePreview(),
+              ],
+            ),
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -397,17 +444,18 @@ class _ComposerState extends State<Composer> {
                   ),
                 ),
               ),
-              Transform.rotate(
-                angle: -0.6,
-                child: IconButton(
-                  icon: Icon(Icons.attach_file, color: muted),
-                  onPressed: _attachSheet,
+              if (widget.editing == null)
+                Transform.rotate(
+                  angle: -0.6,
+                  child: IconButton(
+                    icon: Icon(Icons.attach_file, color: muted),
+                    onPressed: _attachSheet,
+                  ),
                 ),
-              ),
               // Camera — text lihitana lapto (WhatsApp sarkha).
               AnimatedSize(
                 duration: const Duration(milliseconds: 180),
-                child: _text.text.isEmpty
+                child: _text.text.isEmpty && widget.editing == null
                     ? IconButton(
                         icon: Icon(Icons.camera_alt_outlined, color: muted),
                         onPressed: () => _pickImage(ImageSource.camera),
@@ -454,14 +502,19 @@ class _ComposerState extends State<Composer> {
   }
 
   Widget _roundButton() {
-    final mic = _empty && !_recording;
+    final mic = _empty && !_recording && widget.editing == null;
     final icon = _sending
         ? const SizedBox.square(
             key: ValueKey('busy'),
             dimension: 22,
             child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
           )
-        : Icon(mic ? Icons.mic_rounded : Icons.send_rounded, key: ValueKey(mic), color: Colors.white, size: 23);
+        : Icon(
+            mic ? Icons.mic_rounded : (widget.editing != null ? Icons.check_rounded : Icons.send_rounded),
+            key: ValueKey(mic ? 'mic' : (widget.editing != null ? 'save' : 'send')),
+            color: Colors.white,
+            size: 23,
+          );
     final button = Pressable(
       scale: .9,
       onTap: _sending ? null : (_recording ? () => _stopRecording(send: true) : (mic ? _startRecording : _send)),
@@ -488,7 +541,8 @@ class _ComposerState extends State<Composer> {
     return _recording ? PulseRing(color: Wa.green, size: 48, child: button) : button;
   }
 
-  Widget _replyPreview(ChatMessage r) {
+  /// Reply bar — `edit` = "Edit message" (to message, X = edit radd).
+  Widget _replyPreview(ChatMessage r, {bool edit = false}) {
     final mineReply = r.by == widget.me;
     // Web composer reply bar `#00a884`.
     const color = Wa.green;
@@ -513,7 +567,7 @@ class _ComposerState extends State<Composer> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mineReply ? 'You' : r.byName,
+                      edit ? 'Edit message' : (mineReply ? 'You' : r.byName),
                       style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     Text(
@@ -526,7 +580,7 @@ class _ComposerState extends State<Composer> {
                 ),
               ),
             ),
-            IconButton(icon: const Icon(Icons.close, size: 18), onPressed: widget.onCancelReply, visualDensity: VisualDensity.compact),
+            IconButton(icon: const Icon(Icons.close, size: 18), onPressed: edit ? widget.onCancelEdit : widget.onCancelReply, visualDensity: VisualDensity.compact),
           ],
         ),
       ),

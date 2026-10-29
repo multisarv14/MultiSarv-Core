@@ -175,7 +175,8 @@ type FullTicket = TicketData & { title?: string; priority?: string; module?: str
 const canSee = (uid: string, a: AdminDoc | undefined, kind: Kind, t: FullTicket) => !!a && hasModule(a, KINDS[kind].module, "view") && devVisible(uid, a, t);
 
 /**
- * Ticket badalla — sambandhit lokanna bell (inbox) + push. Recipients: raise karnara, assignee,
+ * Ticket banla / badalla — sambandhit lokanna bell (inbox) + push (web ani phone app). Recipients:
+ * ticket chya project la map kelele users (Module Access → projects), raise karnara, assignee,
  * `extra` (juna assignee, mention), comment kelele; navin ticket la triage sathi `assign` permission
  * asnare. Pratyekache access tapasun — ticket disat nasel tar kahich nahi. Karnaryala nahi.
  */
@@ -207,6 +208,9 @@ async function notifyTicket(opts: {
     const admins = await db.collection("admins").where("active", "==", true).get();
     const byId = new Map(admins.docs.map((d) => [d.id, d.data() as AdminDoc]));
     if (opts.triage) for (const [u, a] of byId) if (hasModule(a, KINDS[kind].module, "assign")) want.add(u);
+    // Project la map kelele users — navin ticket ani pratyek badal (Multisarv la mapping nahi, sagle users asta).
+    const pid = String(ticket.projectId ?? "");
+    if (pid && pid !== MULTISARV_ID) for (const [u, a] of byId) if (a.projects?.[pid]?.length) want.add(u);
     want.delete(by.uid);
 
     const recipients = [...want].filter((u) => canSee(u, byId.get(u), kind, ticket));

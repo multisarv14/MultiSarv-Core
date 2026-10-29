@@ -52,6 +52,8 @@ export interface ChatSummary {
   lastAttachment: string | null;
   /** Group madhla "X added Y" sarkha. */
   lastSystem: boolean;
+  /** Shevatcha message "delete for everyone" zala. */
+  lastDeleted: boolean;
   /** Shevatchya message madhe mention kelele / reply kelelya message cha lekhak. */
   lastMentions: string[];
   lastReplyToBy: string | null;
@@ -109,9 +111,21 @@ export interface ChatMessage {
   at: Date | null;
   /** "Delete for everyone" zalela. */
   deleted: boolean;
+  /** Pathavlyanantar badallela ("Edited"). */
+  edited: boolean;
   /** Group madhla "X ne group banavla" sarkha message. */
   system: boolean;
 }
+
+/** Core `chat.ts` `EDIT_WINDOW_MS` sobat same (WhatsApp sarkha 15 min). */
+export const CHAT_EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+/** Swatahcha sadha message, ajun vel ahe — "Edit" dakhva (server pan tapasto). */
+export const canEditMessage = (m: ChatMessage, me: string) =>
+  m.by === me && !m.deleted && !m.system && !m.call && !m.forwarded && !!m.at && Date.now() - m.at.getTime() < CHAT_EDIT_WINDOW_MS;
+
+export const editChatMessage = (chatId: string, id: string, text: string, mentions: string[] = []) =>
+  callCore<{ ok: boolean }>("editChatMessage", { chatId, id, text, mentions });
 
 /** Core `chat.ts` / storage.rules sobat same. */
 export const CHAT_MAX_BYTES = 10 * 1024 * 1024;
@@ -165,6 +179,7 @@ function summaryOf(id: string, x: DocumentData, uid: string): ChatSummary {
     byName?: string;
     attachment?: string | null;
     system?: boolean;
+    deleted?: boolean;
     mentions?: string[];
     replyToBy?: string | null;
   };
@@ -181,6 +196,7 @@ function summaryOf(id: string, x: DocumentData, uid: string): ChatSummary {
     lastByName: last.byName ?? "",
     lastAttachment: last.attachment ?? null,
     lastSystem: last.system === true,
+    lastDeleted: last.deleted === true,
     lastMentions: last.mentions ?? [],
     lastReplyToBy: last.replyToBy ?? null,
     updatedAt,
@@ -339,6 +355,7 @@ export function useChatMessagesPaged(chatId: string | null, me: string, limit = 
               replyTo: (x.replyTo as ChatReply | null) ?? null,
               at: toDate(x.at),
               deleted: x.deleted === true,
+              edited: x.editedAt != null && x.deleted !== true,
               system: x.kind === "system",
               call: x.kind === "call" && x.call ? (x.call as ChatMessage["call"]) : null,
             };
