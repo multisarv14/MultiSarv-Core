@@ -681,7 +681,11 @@ class _FileAttachmentState extends State<_FileAttachment> {
                     dimension: 32,
                     child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2)),
                   )
-                : Icon(ext == 'PDF' ? Icons.picture_as_pdf : Icons.insert_drive_file, size: 32, color: ext == 'PDF' ? Colors.redAccent : Wa.muted(context)),
+                : Icon(
+                    ext == 'PDF' ? Icons.picture_as_pdf : (ext == 'APK' ? Icons.android_rounded : Icons.insert_drive_file),
+                    size: 32,
+                    color: ext == 'PDF' ? Colors.redAccent : (ext == 'APK' ? const Color(0xFF3DDC84) : Wa.muted(context)),
+                  ),
             const SizedBox(width: 10),
             Flexible(
               child: Column(

@@ -116,10 +116,13 @@ export interface ChatMessage {
 /** Core `chat.ts` / storage.rules sobat same. */
 export const CHAT_MAX_BYTES = 10 * 1024 * 1024;
 export const CHAT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
-/** Video la 50 MB, baki 10 MB. */
-export const chatMaxFor = (type: string) => (type.startsWith("video/") ? CHAT_VIDEO_MAX_BYTES : CHAT_MAX_BYTES);
-export const CHAT_ACCEPT = ".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.mp3,.m4a,.wav,.ogg,.webm,.mp4,.mov,.3gp";
+export const CHAT_APK_MAX_BYTES = 100 * 1024 * 1024;
+const APK_TYPE = "application/vnd.android.package-archive";
+/** Video la 50 MB, APK la 100 MB, baki 10 MB. */
+export const chatMaxFor = (type: string) => (type.startsWith("video/") ? CHAT_VIDEO_MAX_BYTES : type === APK_TYPE ? CHAT_APK_MAX_BYTES : CHAT_MAX_BYTES);
+export const CHAT_ACCEPT = ".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.mp3,.m4a,.wav,.ogg,.webm,.mp4,.mov,.3gp";
 const TYPES = [
+  /^application\/vnd\.android\.package-archive$/,
   /^image\/(png|jpe?g|gif|webp)$/,
   /^application\/pdf$/,
   /^text\/(plain|csv)$/,
@@ -128,7 +131,9 @@ const TYPES = [
   /^audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)$/,
   /^video\/(mp4|quicktime|webm|3gpp)$/,
 ];
-export const chatFileOk = (f: File) => TYPES.some((r) => r.test(f.type.split(";")[0]));
+/** Upload la jaanara type — codecs shivay; browser APK la type det nahi (Windows / Mac) tevha extension varun. */
+export const chatFileType = (f: File) => f.type.split(";")[0] || (/\.apk$/i.test(f.name) ? APK_TYPE : "");
+export const chatFileOk = (f: File) => TYPES.some((r) => r.test(chatFileType(f)));
 
 export const chatIdOf = (a: string, b: string) => [a, b].sort().join("__");
 
@@ -368,7 +373,7 @@ export async function sendChatMessage(
     const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
     const path = `chat/${chatId}/${me}/${Date.now()}-${safe}`;
     // contentType madhe codecs (";codecs=opus") nako — rules exact type tapasta.
-    await uploadBytes(ref(core().storage, path), file, { contentType: file.type.split(";")[0] });
+    await uploadBytes(ref(core().storage, path), file, { contentType: chatFileType(file) });
     attachment = { path, name: file.name, duration: opts.duration };
   }
   return callCore<{ id: string; chatId: string }>("sendChatMessage", {

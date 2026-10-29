@@ -12,6 +12,7 @@ import '../../services/session_service.dart';
 import '../conversation/widgets/avatar.dart';
 import 'raise_ticket_view.dart';
 import 'ticket_detail_view.dart';
+import '../notifications/notifications_view.dart';
 
 /// Tickets tab — var Dev Tickets / Client Tickets don sections (web `/dev-tickets`, `/client-tickets`).
 /// Module cha "view" asel tarach to section disto.
@@ -27,7 +28,7 @@ class TicketsView extends StatelessWidget {
       backgroundColor: Wa.bg(context),
       titleSpacing: 16,
       title: const Text('Tickets', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -.6)),
-      actions: const [ThemeToggle(), SizedBox(width: 8)],
+      actions: const [NotificationBell(), ThemeToggle(), SizedBox(width: 8)],
       bottom: kinds.isEmpty
           ? null
           : TabBar(

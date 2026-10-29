@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
 import '../data/chat_repository.dart';
+import '../data/inbox_repository.dart';
 import '../data/project_repository.dart';
 import '../data/ticket_repository.dart';
 import '../services/call_service.dart';
@@ -21,6 +22,7 @@ void setupLocator() {
     ..registerLazySingleton(SessionService.new)
     ..registerLazySingleton(ChatRepository.new)
     ..registerLazySingleton(TicketRepository.new)
+    ..registerLazySingleton(InboxRepository.new)
     ..registerLazySingleton(ProjectRepository.new)
     ..registerLazySingleton(PushService.new)
     ..registerLazySingleton(CallService.new);

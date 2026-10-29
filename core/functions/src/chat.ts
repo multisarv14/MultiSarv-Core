@@ -16,15 +16,19 @@ import { callable, db, FieldValue, fail, loadAdmin, now, str, type AdminDoc } fr
 
 /** Storage rules sobat same. */
 export const CHAT_MAX_BYTES = 10 * 1024 * 1024;
-/** Video la jast jaga (storage.rules sobat same). */
+/** Video ani APK la jast jaga (storage.rules sobat same). */
 export const CHAT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
-export const chatMaxFor = (type: string) => (type.startsWith("video/") ? CHAT_VIDEO_MAX_BYTES : CHAT_MAX_BYTES);
+export const CHAT_APK_MAX_BYTES = 100 * 1024 * 1024;
+const APK_TYPE = "application/vnd.android.package-archive";
+export const chatMaxFor = (type: string) => (type.startsWith("video/") ? CHAT_VIDEO_MAX_BYTES : type === APK_TYPE ? CHAT_APK_MAX_BYTES : CHAT_MAX_BYTES);
 const CHAT_TYPES = [
   /^image\/(png|jpe?g|gif|webp)$/,
   /^application\/pdf$/,
   /^text\/(plain|csv)$/,
   /^application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint)$/,
   /^application\/(zip|x-zip-compressed)$/,
+  // Android app (APK) — team madhe test builds.
+  /^application\/vnd\.android\.package-archive$/,
   // Voice messages (MediaRecorder: Chrome webm/ogg, Safari mp4) ani audio files.
   /^audio\/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)$/,
   /^video\/(mp4|quicktime|webm|3gpp)$/,

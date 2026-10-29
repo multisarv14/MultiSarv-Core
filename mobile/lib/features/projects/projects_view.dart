@@ -10,6 +10,7 @@ import '../../core/backend.dart';
 import '../../data/project_repository.dart';
 import '../../services/session_service.dart';
 import '../conversation/widgets/avatar.dart';
+import '../notifications/notifications_view.dart';
 
 /// Majhe projects (web `/projects`) — super admin la sagle, itaranna Module Access madhle.
 class ProjectsView extends StatefulWidget {
@@ -59,7 +60,7 @@ class _ProjectsViewState extends State<ProjectsView> with AutomaticKeepAliveClie
         backgroundColor: Wa.bg(context),
         titleSpacing: 16,
         title: const Text('Projects', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -.6)),
-        actions: const [ThemeToggle(), SizedBox(width: 8)],
+        actions: const [NotificationBell(), ThemeToggle(), SizedBox(width: 8)],
       ),
       body: _projects == null
           ? Center(

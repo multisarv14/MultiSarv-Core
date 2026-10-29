@@ -14,6 +14,7 @@ import '../../data/ticket_repository.dart';
 import '../../services/session_service.dart';
 import '../tickets/ticket_detail_view.dart';
 import '../tickets/tickets_view.dart';
+import '../notifications/notifications_view.dart';
 
 /// Dashboard — swagat, majhe tickets / chats / projects chi sankhya, ani mala assign zalele khule tickets.
 class DashboardView extends StatefulWidget {
@@ -115,7 +116,7 @@ class _DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCl
             Text('Dashboard', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, letterSpacing: -.5)),
           ],
         ),
-        actions: const [ThemeToggle(), SizedBox(width: 8)],
+        actions: const [NotificationBell(), ThemeToggle(), SizedBox(width: 8)],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),

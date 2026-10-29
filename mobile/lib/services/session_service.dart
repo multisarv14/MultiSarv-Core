@@ -24,7 +24,8 @@ class Me {
   bool can(String module, String perm) => superAdmin || (modules[module]?.contains(perm) ?? false);
 }
 
-enum SessionState { loading, signedOut, signedIn }
+/// `offline` — login ahe pan profile server / cache madhun milala nahi (net nahi): Retry.
+enum SessionState { loading, signedOut, signedIn, offline }
 
 class SessionService with ListenableServiceMixin {
   SessionService() {
@@ -49,9 +50,14 @@ class SessionService with ListenableServiceMixin {
       _state.value = SessionState.signedOut;
       return;
     }
+    _state.value = SessionState.loading;
     try {
-      // Rules: admin la swatahcha doc vachta yeto.
-      final doc = await FirebaseFirestore.instance.collection('admins').doc(user.uid).get();
+      final doc = await _profile(user.uid);
+      if (doc == null) {
+        // Net nahi ani cache pan nahi — logout nako (login tikun ahe), Retry dakhva.
+        _state.value = SessionState.offline;
+        return;
+      }
       final x = doc.data();
       if (x == null || x['active'] != true) {
         blockedReason = x == null ? 'This account is not a MultiSarv Core user.' : 'Your account is disabled. Contact the super admin.';
@@ -83,6 +89,29 @@ class SessionService with ListenableServiceMixin {
       await _auth.signOut();
     }
   }
+
+  /// Rules: admin la swatahcha doc vachta yeto. Slow / band net var splash atku naye mhanun
+  /// timeout; mag cache (aadhi login kelele phone offline pan ughadtat). Donhi nahi → null.
+  /// `permission-denied` sarkhe khare errors pudhe jatat (tithe logout yogya).
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _profile(String uid) async {
+    final ref = FirebaseFirestore.instance.collection('admins').doc(uid);
+    try {
+      return await ref.get().timeout(const Duration(seconds: 12));
+    } on FirebaseException catch (e) {
+      if (e.code != 'unavailable' && e.code != 'deadline-exceeded') rethrow;
+    } on TimeoutException {
+      // khali cache
+    }
+    try {
+      final cached = await ref.get(const GetOptions(source: Source.cache));
+      return cached.exists ? cached : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Offline screen cha Retry.
+  Future<void> retry() => _onUser(_auth.currentUser);
 
   Future<void> _syncClaim(User user, bool superAdmin) async {
     try {

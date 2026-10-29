@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/locator.dart';
 import '../../app/theme.dart';
+import '../../data/inbox_repository.dart';
 import '../../services/call_service.dart';
 import '../../services/push_service.dart';
 import '../../services/session_service.dart';
@@ -27,6 +28,8 @@ class _HomeViewState extends State<HomeView> {
     homeTab.value = 0;
     // Calls — incoming aika (native ring), app band astana uchallela call joda.
     locator<CallService>().start(locator<SessionService>().me.uid);
+    // Bell (ticket / notice inbox) — sagle tabs ekach listener vachtat.
+    locator<InboxRepository>().start(locator<SessionService>().me.uid);
     // Push tap (ticket assign) — Tickets tab + to ticket. Chats `init` push start karnya aadhi set.
     locator<PushService>().onOpenTicket = (id) {
       homeTab.value = 1;
@@ -39,6 +42,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void dispose() {
     locator<CallService>().stop();
+    locator<InboxRepository>().stop();
     super.dispose();
   }
 

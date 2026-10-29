@@ -15,6 +15,7 @@ import '../../services/session_service.dart';
 import '../conversation/conversation_view.dart';
 import '../conversation/widgets/avatar.dart';
 import '../groups/new_group_view.dart';
+import '../notifications/notifications_view.dart';
 
 /// List madhli ek line — 1:1 (`user`) kinva group (`user` null, `chat.isGroup`).
 class ChatRow {
@@ -265,6 +266,7 @@ class _Header extends StatelessWidget {
         ],
       ),
       actions: [
+        const NotificationBell(),
         const ThemeToggle(),
         Padding(
           padding: const EdgeInsets.only(right: 12, left: 4),

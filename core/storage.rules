@@ -23,9 +23,9 @@ service firebase.storage {
         && request.auth.uid == uid
         && inChat(chatId)
         && request.resource.size > 0
-        // Video 50 MB, baki 10 MB (functions `chatMaxFor` sobat same).
-        && request.resource.size <= (request.resource.contentType.matches('video/.*') ? 50 : 10) * 1024 * 1024
-        && request.resource.contentType.matches('video/(mp4|quicktime|webm|3gpp)|image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
+        // Video 50 MB, APK 100 MB, baki 10 MB (functions `chatMaxFor` sobat same).
+        && request.resource.size <= (request.resource.contentType.matches('video/.*') ? 50 : request.resource.contentType == 'application/vnd.android.package-archive' ? 100 : 10) * 1024 * 1024
+        && request.resource.contentType.matches('application/vnd[.]android[.]package-archive|video/(mp4|quicktime|webm|3gpp)|image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
       allow update, delete: if false;
     }
 

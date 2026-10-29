@@ -21,6 +21,31 @@ enum CallPhase { starting, calling, ringing, incoming, connecting, connected, re
 /// permission / noDevice / network / server.
 enum CallError { permission, noDevice, network, server }
 
+/// Native call screen (`flutter_callkit_incoming`) cha id. iOS CallKit fakt UUID ghetto — Firestore
+/// call id (20 akshare) dila tar plugin "invalid UUID" mhanun call sodun deto (ring nahi). Mhanun
+/// call id varun nehmi tech UUID (Android la pan, ekach niyam); khara id `extra.callId` madhe.
+String callkitId(String callId) {
+  var a = 0xcbf29ce484222325, b = 0x6c62272e07bb0142;
+  for (final c in callId.codeUnits) {
+    a = (a ^ c) * 0x100000001b3;
+    b = (b ^ c) * 0x100000001b3 + 0x9e3779b97f4a7c15;
+  }
+  final bytes = [for (var i = 0; i < 8; i++) (a >> (i * 8)) & 0xff, for (var i = 0; i < 8; i++) (b >> (i * 8)) & 0xff];
+  bytes[6] = (bytes[6] & 0x0f) | 0x50; // version 5
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+  final h = bytes.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+}
+
+/// Native call → aapla call id.
+String _callIdOf(CallKitParams p) {
+  final id = p.extra?['callId'];
+  return id is String && id.isNotEmpty ? id : p.id;
+}
+
+/// Native call band (ring / ongoing) — call id varun.
+Future<void> endNativeCall(String callId) => FlutterCallkitIncoming.endCall(callkitId(callId)).catchError((Object _) {});
+
 class CallSession extends ChangeNotifier {
   CallSession._(this._repo, this.me, {required this.peerUid, required this.peerName, required this.type, required this.outgoing, required this.phase, this.callId});
 
@@ -100,6 +125,9 @@ class CallSession extends ChangeNotifier {
       callId = r.callId;
       if (r.busy) return _finish('busy');
       if (_closed) return unawaited(_repo.end(r.callId, 'hangup').catchError((Object _) {}));
+      // Android: native outgoing call — foreground service (mic / camera) mule app background madhe
+      // gela tari awaaj jato ani Android app marat nahi. (iOS: `audio` background mode purto.)
+      if (Platform.isAndroid) unawaited(_startNative(r.callId));
       for (final c in _pendingLocal) {
         unawaited(_repo.sendCandidate(r.callId, me, c).catchError((Object _) {}));
       }
@@ -143,6 +171,7 @@ class CallSession extends ChangeNotifier {
     final offer = _record?.offer;
     if (id == null || phase != CallPhase.incoming || offer == null) return;
     _set(() => phase = CallPhase.connecting);
+    _watchConnect();
     try {
       await _initRenderers();
       final results = await Future.wait([_repo.config(), _openMedia()]);
@@ -284,7 +313,7 @@ class CallSession extends ChangeNotifier {
       if (id != null && !_markedConnected) {
         _markedConnected = true;
         unawaited(_repo.connected(id).catchError((Object _) {}));
-        unawaited(FlutterCallkitIncoming.setCallConnected(id).catchError((Object _) {}));
+        unawaited(FlutterCallkitIncoming.setCallConnected(callkitId(id)).catchError((Object _) {}));
         _beat = Timer.periodic(const Duration(seconds: 30), (_) => unawaited(_repo.heartbeat(id).catchError((Object _) {})));
       }
     } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected && connectedAt != null) {
@@ -294,6 +323,32 @@ class CallSession extends ChangeNotifier {
     } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
       _lost();
     }
+  }
+
+  /// Uchallyanantar media jodla nahi (ICE "checking" madhech — kahi phones var "failed" yetach
+  /// nahi) tar "Connecting…" kayam nako: 30 s nantar network error ne samplava.
+  void _watchConnect() {
+    _timers.add(
+      Timer(const Duration(seconds: 30), () {
+        if (!_closed && connectedAt == null) _lost();
+      }),
+    );
+  }
+
+  Future<void> _startNative(String id) async {
+    try {
+      await FlutterCallkitIncoming.startCall(
+        CallKitParams(
+          id: callkitId(id),
+          nameCaller: peerName,
+          appName: 'MultiSarv',
+          handle: video ? 'Video call' : 'Voice call',
+          type: video ? 1 : 0,
+          extra: {'callId': id},
+          android: const AndroidParams(isCustomNotification: true, isShowLogo: false, backgroundColor: '#0B0D12', actionColor: '#00A884', textColor: '#ffffff'),
+        ),
+      );
+    } catch (_) {}
   }
 
   void _lost() {
@@ -312,7 +367,10 @@ class CallSession extends ChangeNotifier {
     if (r.status == 'ringing' && phase == CallPhase.calling) _set(() => phase = CallPhase.ringing);
     final answer = r.answer;
     if ((r.status == 'accepted' || r.status == 'connected') && answer != null && !_remoteSet && _pc != null) {
-      if (connectedAt == null) _set(() => phase = CallPhase.connecting);
+      if (connectedAt == null) {
+        _set(() => phase = CallPhase.connecting);
+        _watchConnect();
+      }
       try {
         await _pc!.setRemoteDescription(RTCSessionDescription(answer['sdp'] as String?, answer['type'] as String?));
         _remoteSet = true;
@@ -372,7 +430,7 @@ class CallSession extends ChangeNotifier {
     unawaited(_pc?.close());
     _pc = null;
     final id = callId;
-    if (id != null) unawaited(FlutterCallkitIncoming.endCall(id).catchError((Object _) {}));
+    if (id != null) unawaited(endNativeCall(id));
     _set(() {
       phase = CallPhase.ended;
       outcome = result;
@@ -476,7 +534,7 @@ class CallService extends ChangeNotifier {
     final ids = list.map((r) => r.id).toSet();
     // Caller ne cancel kela / dusrikade uchalla — ring thambva.
     for (final gone in _ringing.difference(ids)) {
-      if (current?.callId != gone) unawaited(FlutterCallkitIncoming.endCall(gone).catchError((Object _) {}));
+      if (current?.callId != gone) unawaited(endNativeCall(gone));
     }
     _ringing = ids;
     for (final r in list) {
@@ -491,9 +549,14 @@ class CallService extends ChangeNotifier {
   Future<void> _onEvent(CallEvent? e) async {
     switch (e) {
       case CallEventActionCallAccept(:final callKitParams):
-        await acceptById(callKitParams.id);
+        await acceptById(_callIdOf(callKitParams));
       case CallEventActionCallDecline(:final callKitParams):
-        await _repo.decline(callKitParams.id).catchError((Object _) {});
+        await _repo.decline(_callIdOf(callKitParams)).catchError((Object _) {});
+      // Phone cha native "End" (iOS lock screen / Android ongoing notification) — app cha call pan band.
+      // Aaplach `endNativeCall` ne aala tar call adhich sampla ahe (hangup kahi karat nahi).
+      case CallEventActionCallEnded(:final callKitParams):
+        final s = current;
+        if (s != null && !s.ended && s.callId == _callIdOf(callKitParams)) await s.hangup();
       default:
         break;
     }
@@ -504,7 +567,7 @@ class CallService extends ChangeNotifier {
     try {
       final active = await FlutterCallkitIncoming.activeCalls();
       for (final c in active) {
-        if (c.isAccepted && current?.callId != c.id) await acceptById(c.id);
+        if (c.isAccepted && current?.callId != _callIdOf(c)) await acceptById(_callIdOf(c));
       }
     } catch (_) {}
   }
@@ -517,11 +580,11 @@ class CallService extends ChangeNotifier {
     try {
       final r = await _repo.get(callId).catchError((Object _) => null);
       if (r == null || r.status != 'ringing' || r.callee != me) {
-        await FlutterCallkitIncoming.endCall(callId).catchError((Object _) {});
+        await endNativeCall(callId);
         return;
       }
       if (inCall) {
-        await FlutterCallkitIncoming.endCall(callId).catchError((Object _) {});
+        await endNativeCall(callId);
         return;
       }
       final s = CallSession.incomingCall(_repo, me, r);
@@ -539,10 +602,10 @@ class CallService extends ChangeNotifier {
 Future<void> showIncoming(String callId, String name, bool video) async {
   try {
     final active = await FlutterCallkitIncoming.activeCalls();
-    if (active.any((c) => c.id == callId)) return;
+    if (active.any((c) => _callIdOf(c) == callId)) return;
     await FlutterCallkitIncoming.showCallkitIncoming(
       CallKitParams(
-        id: callId,
+        id: callkitId(callId),
         nameCaller: name,
         appName: 'MultiSarv',
         handle: video ? 'Video call' : 'Voice call',

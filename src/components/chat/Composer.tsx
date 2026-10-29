@@ -2,7 +2,7 @@ import { AudioLines, Camera, FileText, Keyboard, Loader2, Mic, Paperclip, Reply,
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { CHAT_ACCEPT, CHAT_MAX_BYTES, chatFileOk, chatMaxFor, type ChatMessage } from "@/api/chat";
+import { CHAT_ACCEPT, CHAT_MAX_BYTES, chatFileOk, chatFileType, chatMaxFor, type ChatMessage } from "@/api/chat";
 import { Avatar } from "@/components/ui/primitives";
 import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -128,7 +128,7 @@ export function Composer({
     if (cameraInput.current) cameraInput.current.value = "";
     if (!f) return;
     if (!chatFileOk(f)) return toast.error(t("chat.badType"));
-    if (f.size > chatMaxFor(f.type)) return toast.error(t("chat.tooBig", { max: fileSize(chatMaxFor(f.type)) }));
+    if (f.size > chatMaxFor(chatFileType(f))) return toast.error(t("chat.tooBig", { max: fileSize(chatMaxFor(chatFileType(f))) }));
     setFile(f);
     input.current?.focus();
   };

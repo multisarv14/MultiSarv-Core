@@ -5,14 +5,13 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/backend.dart';
 import '../firebase_options.dart';
-import 'call_service.dart' show showIncoming;
+import 'call_service.dart' show endNativeCall, showIncoming;
 
 /// Chat push madhla chat id (test / ticket la nahi).
 String? _chatIdOf(RemoteMessage m) {
@@ -39,7 +38,7 @@ Future<void> firebaseBackgroundPush(RemoteMessage m) async {
   }
   // Missed / cancelled — ring thambva (tag `call-<id>`).
   final tag = '${m.data['tag'] ?? ''}';
-  if (tag.startsWith('call-')) await FlutterCallkitIncoming.endCall(tag.substring(5)).catchError((Object _) {});
+  if (tag.startsWith('call-')) await endNativeCall(tag.substring(5));
   final chatId = _chatIdOf(m);
   if (chatId == null) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

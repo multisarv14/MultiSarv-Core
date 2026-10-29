@@ -116,7 +116,7 @@ class _ComposerState extends State<Composer> {
 
   void _setFile(File f, String name) {
     final type = chatContentType(name);
-    if (type == null) return _toast("This file type isn't allowed. Use images, videos, PDF, text, Office or ZIP files.");
+    if (type == null) return _toast("This file type isn't allowed. Use images, videos, PDF, text, Office, ZIP or APK files.");
     if (f.lengthSync() > chatMaxFor(type)) return _toast('File is too large (max ${chatMaxFor(type) ~/ (1024 * 1024)} MB).');
     setState(() {
       _file = f;

@@ -11,10 +11,13 @@ import 'models.dart';
 /// Core storage.rules / functions `chat.ts` sobat same.
 const chatMaxBytes = 10 * 1024 * 1024;
 const chatVideoMaxBytes = 50 * 1024 * 1024;
+const chatApkMaxBytes = 100 * 1024 * 1024;
+const _apkType = 'application/vnd.android.package-archive';
 
-/// Video 50 MB, baki 10 MB.
-int chatMaxFor(String type) => type.startsWith('video/') ? chatVideoMaxBytes : chatMaxBytes;
+/// Video 50 MB, APK 100 MB, baki 10 MB.
+int chatMaxFor(String type) => type.startsWith('video/') ? chatVideoMaxBytes : (type == _apkType ? chatApkMaxBytes : chatMaxBytes);
 final _types = [
+  RegExp(r'^application/vnd\.android\.package-archive$'),
   RegExp(r'^image/(png|jpe?g|gif|webp)$'),
   RegExp(r'^application/pdf$'),
   RegExp(r'^text/(plain|csv)$'),

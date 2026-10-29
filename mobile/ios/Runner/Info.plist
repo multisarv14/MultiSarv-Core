@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Record voice messages in chat.</string>
+	<string>Use the microphone for voice messages and audio/video calls.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos to send in chat.</string>
+	<string>Use the camera for video calls and to take photos to send in chat.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save photos and videos from chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -7,12 +7,19 @@ const coreRegion = 'asia-south1';
 
 final _functions = FirebaseFunctions.instanceFor(region: coreRegion);
 
+/// Default 70s — tevdha vel button var spinner nako; cold start pan yat basto.
+final _callOptions = HttpsCallableOptions(timeout: const Duration(seconds: 30));
+
+const _unreachable = "Couldn't reach the server. Check your connection and try again.";
+
 /// Callable → `Map` / `List`. Server `core.err.*` key pathavto — tyacha message [AppError] madhe.
+/// Net nahi / timeout — raw "UNAVAILABLE" aivaji samjel asa message.
 Future<T> callCore<T>(String name, [Map<String, dynamic> data = const {}]) async {
   try {
-    final res = await _functions.httpsCallable(name).call<dynamic>(data);
+    final res = await _functions.httpsCallable(name, options: _callOptions).call<dynamic>(data);
     return res.data as T;
   } on FirebaseFunctionsException catch (e) {
+    if (e.code == 'unavailable' || e.code == 'deadline-exceeded') throw AppError(_unreachable);
     throw AppError(errorText(e.message ?? e.code));
   }
 }
@@ -88,7 +95,7 @@ String errorText(Object err) {
       case 'permission-denied':
         return "You don't have access to this data. Ask the super admin to check your Module Access.";
       case 'unavailable':
-        return "Couldn't reach the server. Check your connection and try again.";
+        return _unreachable;
       case 'failed-precondition':
         return 'The server is still preparing this list. Try again in a minute.';
       case 'unauthenticated':
