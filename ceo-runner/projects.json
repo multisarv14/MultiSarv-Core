@@ -1,0 +1,81 @@
+[
+  {
+    "id": "multisarv",
+    "name": "Multisarv Admin",
+    "repo": ".",
+    "remotes": ["origin"],
+    "branch": "main",
+    "type": "webMobile",
+    "context": "Multisarv master admin panel (React 19 + Vite + Tailwind, src/) — admins, project access, Client/Dev tickets, internal chat, calls, notifications, CEO agent. NOAI (/p), SocietySarv (/s), EverMind (/e) che admin pages pan ithech. Core Firebase backend core/functions (multisarv-core). mobile/ = Multisarv Core Flutter app (chat, tickets, notifications).",
+    "keywords": ["multisarv", "admin panel", "master panel", "panel", "core", "tickets", "internal chat", "multisarv app"],
+    "link": ["node_modules", "core/functions/node_modules"],
+    "copy": [".env.local", "mobile/android/key.properties"],
+    "setup": ["cd mobile && flutter pub get"],
+    "checks": ["npm run typecheck", "npm --prefix core/functions run build", "cd mobile && flutter analyze --no-fatal-infos --no-fatal-warnings"],
+    "web": { "firebaseProject": "noai-17bdc" },
+    "mobile": { "dir": "mobile" },
+    "deploy": [
+      { "when": "core/", "run": "cd core && firebase deploy --only functions,firestore:rules,storage --project multisarv-core" }
+    ]
+  },
+  {
+    "id": "garageguru",
+    "name": "Garage Guru",
+    "repo": "../GarageGuru",
+    "remotes": ["origin"],
+    "branch": "flutter-migration",
+    "type": "mobile",
+    "context": "Garage Guru — workshop / garage management Flutter app (job cards, vehicles, customers, billing). Firebase project multisarv-mobileapps; Cloud Functions functions/ (index.js).",
+    "keywords": ["garage", "garageguru", "garage guru", "workshop", "job card", "vehicle"],
+    "link": ["functions/node_modules"],
+    "copy": ["keystore.properties", "garageguru-upload-key.jks"],
+    "setup": ["flutter pub get"],
+    "checks": ["flutter analyze --no-fatal-infos --no-fatal-warnings"],
+    "mobile": { "dir": "." },
+    "deploy": [
+      { "when": "functions/", "run": "firebase deploy --only functions --project multisarv-mobileapps" },
+      { "when": "firestore.", "run": "firebase deploy --only firestore --project multisarv-mobileapps" }
+    ]
+  },
+  {
+    "id": "societysarv",
+    "name": "Society Sarv",
+    "repo": "../SocietySarv/SocietySarv",
+    "remotes": ["origin"],
+    "branch": "migrate-to-flutter",
+    "type": "mobile",
+    "context": "Society Sarv — housing society management Flutter app: residents, security guards / visitors, maintenance bills, notices, complaints, committee. Firestore named database societysarv-app-db (multisarv-mobileapps).",
+    "keywords": ["society", "societysarv", "society sarv", "resident", "visitor", "maintenance bill", "guard", "notice"],
+    "copy": ["keystore.properties", "societysarv-release-key.jks"],
+    "setup": ["flutter pub get"],
+    "checks": ["flutter analyze --no-fatal-infos --no-fatal-warnings"],
+    "mobile": { "dir": "." }
+  },
+  {
+    "id": "shopos-app",
+    "name": "ShopOS (Dukan) App",
+    "repo": "../Dukan/mobile_app",
+    "remotes": ["origin"],
+    "branch": "main",
+    "type": "mobile",
+    "context": "ShopOS / Dukan — shop owner, manager, staff daily operations Flutter app (multi-tenant: branding ani permissions login nantar).",
+    "keywords": ["dukan", "shopos", "shop os", "shop", "store", "staff app"],
+    "copy": ["android/key.properties"],
+    "setup": ["flutter pub get"],
+    "checks": ["flutter analyze --no-fatal-infos --no-fatal-warnings"],
+    "mobile": { "dir": "." }
+  },
+  {
+    "id": "shopos-web",
+    "name": "ShopOS (Dukan) Admin Web",
+    "repo": "../Dukan/admin-web",
+    "remotes": ["origin"],
+    "branch": "main",
+    "type": "web",
+    "context": "ShopOS / Dukan admin web (React + Vite) — platform admin ani shop owner web console.",
+    "keywords": ["dukan admin", "shopos admin", "shop os web", "dukan web"],
+    "link": ["node_modules"],
+    "copy": [".env", ".env.local"],
+    "checks": ["npm run build"]
+  }
+]

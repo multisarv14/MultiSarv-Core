@@ -51,6 +51,7 @@ const AdminUsers = page(() => import("./pages/master/Users"), "Users");
 const Chat = page(() => import("./pages/master/Chat"), "Chat");
 const Roles = page(() => import("./pages/master/Roles"), "Roles");
 const CoreNotifications = page(() => import("./pages/master/Notifications"), "Notifications");
+const Ceo = page(() => import("./pages/master/Ceo"), "Ceo");
 const ModuleAccess = page(() => import("./pages/master/ModuleAccess"), "ModuleAccess");
 const ClientTickets = page(() => import("./pages/master/tickets/TicketList"), "ClientTickets");
 const DevTickets = page(() => import("./pages/master/tickets/TicketList"), "DevTickets");
@@ -96,6 +97,7 @@ const router = createBrowserRouter([
               { path: "/settings/access", element: <ModuleAccess /> },
               { path: "/settings/roles", element: <Roles /> },
               { path: "/notifications", element: <CoreNotifications /> },
+              { path: "/ceo", element: <Ceo /> },
             ],
           },
         ],

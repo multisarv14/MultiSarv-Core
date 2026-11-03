@@ -36,6 +36,7 @@ export * from "./chat.js";
 export * from "./push.js";
 export * from "./calls.js";
 export * from "./garageguru.js";
+export * from "./ceo.js";
 
 /** Admin / project callables — project keys (custom token, revoke) lagtat. */
 const callable = <T>(handler: (req: CallableRequest<T>) => Promise<unknown>) => baseCallable<T>(handler, PROJECT_SECRETS);

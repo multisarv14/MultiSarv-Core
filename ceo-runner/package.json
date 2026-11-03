@@ -1,0 +1,20 @@
+{
+  "name": "multisarv-ceo-runner",
+  "private": true,
+  "description": "CEO agent runner — Mac var chalto, core `ceoTasks` uchalto ani Claude Code ne kaam karto",
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "route": "node src/route-test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

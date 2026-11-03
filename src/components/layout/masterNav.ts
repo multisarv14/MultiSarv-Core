@@ -1,5 +1,6 @@
 import {
   BellRing,
+  Bot,
   Building2,
   Tag,
   CreditCard,
@@ -44,6 +45,7 @@ export const MASTER_NAV: MasterNavItem[] = [
   // Sagle Core Users (project users core madhe nastat).
   { to: "/chat", label: "master.nav.chat", icon: MessagesSquare },
   { to: "/notifications", label: "master.nav.notifications", icon: BellRing, superOnly: true },
+  { to: "/ceo", label: "master.nav.ceo", icon: Bot, superOnly: true },
   {
     to: "/settings",
     label: "master.nav.settings",

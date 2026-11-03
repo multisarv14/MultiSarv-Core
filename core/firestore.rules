@@ -151,6 +151,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // CEO agent — fakt super admin vachto; writes `ceoCommand` / `ceoAction` ani runner (Admin SDK).
+    match /ceoTasks/{taskId} {
+      allow read: if isSuper();
+      allow write: if false;
+
+      match /events/{eventId} {
+        allow read: if isSuper();
+        allow write: if false;
+      }
+    }
+    match /ceoProjects/{projectId} {
+      allow read: if isSuper();
+      allow write: if false;
+    }
+    match /ceoRunner/{id} {
+      allow read: if isSuper();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
