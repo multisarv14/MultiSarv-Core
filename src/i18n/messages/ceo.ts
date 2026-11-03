@@ -3,6 +3,7 @@ import { defineMessages } from "../define";
 /** CEO agent (`/ceo`) — command → branch → preview → deploy. */
 export const ceoMsgs = defineMessages({
   "master.nav.ceo": { en: "CEO Agent", hi: "CEO एजेंट", mr: "CEO एजंट", gu: "CEO એજન્ટ" },
+  "ceo.beta": { en: "Beta", hi: "बीटा", mr: "बीटा", gu: "બીટા" },
   "ceo.subtitle": {
     en: "Tell the CEO what to change — it works on a separate branch, shows a preview, and deploys only after you approve",
     hi: "CEO को बताएं क्या बदलना है — वह अलग ब्रांच पर काम करके प्रीव्यू दिखाएगा, आपकी मंज़ूरी के बाद ही डिप्लॉय",

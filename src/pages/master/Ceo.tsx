@@ -59,7 +59,12 @@ export function Ceo() {
   return (
     <>
       <PageHeader
-        title={t("master.nav.ceo")}
+        title={
+          <span className="inline-flex items-center gap-2">
+            {t("master.nav.ceo")}
+            <Badge tone="violet">{t("ceo.beta")}</Badge>
+          </span>
+        }
         description={t("ceo.subtitle")}
         actions={runner?.online && <Badge tone="green" dot>{t("ceo.runnerOnline", { host: runner.host })}</Badge>}
       />
