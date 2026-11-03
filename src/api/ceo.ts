@@ -1,8 +1,9 @@
 import { collection, doc, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { toDate } from "@/context/session";
-import { callCore, core } from "@/lib/firebase";
+import { callCore, core, errorMessage } from "@/lib/firebase";
 
 /** Core `ceoTasks` — CEO agent la dilele commands. Writes `ceoCommand` / `ceoAction` ani Mac varcha runner. */
 export type CeoStatus =
@@ -75,6 +76,9 @@ const toTask = (id: string, d: Record<string, unknown>): CeoTask => ({
   updatedAt: toDate(d.updatedAt),
 });
 
+/** Rules deploy nastil tar permission-denied — chupchap rikama nako, toast dakhva. */
+const showError = (err: unknown) => toast.error(errorMessage(err), { id: "ceo-live" });
+
 function useLive<T>(subscribe: (set: (v: T) => void) => () => void, deps: unknown[]): T | null {
   const [value, setValue] = useState<T | null>(null);
   useEffect(() => {
@@ -90,6 +94,7 @@ export const useCeoProjects = () =>
     (set) =>
       onSnapshot(collection(core().db, "ceoProjects"), (snap) =>
         set(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CeoProject, "id">) })).sort((a, b) => a.name.localeCompare(b.name))),
+        showError,
       ),
     [],
   );
@@ -99,6 +104,7 @@ export const useCeoTasks = () =>
     (set) =>
       onSnapshot(query(collection(core().db, "ceoTasks"), orderBy("createdAt", "desc"), limit(100)), (snap) =>
         set(snap.docs.map((d) => toTask(d.id, d.data()))),
+        showError,
       ),
     [],
   );
@@ -122,6 +128,7 @@ export const useCeoEvents = (taskId: string) =>
             };
           }),
         ),
+        showError,
       ),
     [taskId],
   );
@@ -133,7 +140,7 @@ export function useCeoRunner() {
       onSnapshot(doc(core().db, "ceoRunner", "main"), (snap) => {
         const d = snap.data() ?? {};
         set({ at: toDate(d.at), host: String(d.host ?? ""), busy: str(d.busy) });
-      }),
+      }, showError),
     [],
   );
   const [nowMs, setNow] = useState(() => Date.now());
