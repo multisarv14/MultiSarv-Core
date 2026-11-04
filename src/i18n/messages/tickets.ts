@@ -206,10 +206,10 @@ export const ticketsMsgs = defineMessages({
     gu: "શીર્ષક 3–150 અક્ષરનું હોવું જોઈએ.",
   },
   "core.err.badDescription": {
-    en: "Description must be 3–5000 characters.",
-    hi: "विवरण 3–5000 अक्षर का हो।",
-    mr: "वर्णन 3–5000 अक्षरांचे हवे.",
-    gu: "વર્ણન 3–5000 અક્ષરનું હોવું જોઈએ.",
+    en: "Description must be at least 3 characters.",
+    hi: "विवरण कम से कम 3 अक्षर का हो।",
+    mr: "वर्णन किमान 3 अक्षरांचे हवे.",
+    gu: "વર્ણન ઓછામાં ઓછું 3 અક્ષરનું હોવું જોઈએ.",
   },
   "core.err.badProject": { en: "Choose a valid project.", hi: "सही प्रोजेक्ट चुनें।", mr: "योग्य प्रोजेक्ट निवडा.", gu: "સાચો પ્રોજેક્ટ પસંદ કરો." },
   "core.err.badAssignee": {

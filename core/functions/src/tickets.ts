@@ -29,6 +29,9 @@ const NEXT: Record<Status, Status[]> = {
   hold: ["inProcess"],
 };
 
+/** Description la UI var maryada nahi; fakt Firestore doc (1 MiB) madhe basel evdhi. */
+const DESCRIPTION_MAX = 200_000;
+
 /** Dropdown kram: Medium (default), Low, High, Critical, Showstopper. */
 const PRIORITIES = ["medium", "low", "high", "critical", "showstopper"] as const;
 type Priority = (typeof PRIORITIES)[number];
@@ -279,7 +282,7 @@ export const raiseTicket = callable<{
   const kind = kindOf(req.data.kind);
   const { me, by } = await requirePerm(req, kind, "raise");
   const title = str(req.data.title, "badTitle", 3, 150);
-  const description = str(req.data.description, "badDescription", 3, 5000);
+  const description = str(req.data.description, "badDescription", 3, DESCRIPTION_MAX);
   const projectId = await project(req.data.projectId);
   if (kind === "dev" && me.role !== "superAdmin" && !projectOk(me, projectId)) fail("permission-denied", "badProject");
   const priority = priorityOf(req.data.priority);
@@ -347,7 +350,7 @@ export const updateTicket = callable<{
     }
     const patch = {
       title: str(req.data.title, "badTitle", 3, 150),
-      description: str(req.data.description, "badDescription", 3, 5000),
+      description: str(req.data.description, "badDescription", 3, DESCRIPTION_MAX),
       projectId,
       // Juna client priority / module pathavat nasel tar te tasech rahtat.
       ...(req.data.priority !== undefined && { priority: priorityOf(req.data.priority) }),

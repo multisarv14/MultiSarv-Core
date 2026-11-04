@@ -214,7 +214,7 @@ export function TicketFormModal({
         </div>
         <div>
           <Label>{t("tickets.field.description")}</Label>
-          <Textarea className="min-h-32" value={description} maxLength={5000} onChange={(e) => setDescription(e.target.value)} placeholder={t("tickets.field.descriptionPlaceholder")} />
+          <Textarea className="min-h-32" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("tickets.field.descriptionPlaceholder")} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

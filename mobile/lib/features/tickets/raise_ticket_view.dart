@@ -94,10 +94,9 @@ class _RaiseTicketViewState extends State<RaiseTicketView> {
               controller: _desc,
               minLines: 4,
               maxLines: 10,
-              maxLength: 5000,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(labelText: 'Description', alignLabelWithHint: true),
-              validator: (v) => (v ?? '').trim().length < 3 ? 'Description must be 3–5000 characters.' : null,
+              validator: (v) => (v ?? '').trim().length < 3 ? 'Description must be at least 3 characters.' : null,
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
