@@ -2,11 +2,30 @@
  * Claude Code headless (`claude -p`) — tumcha Claude login vaparto, vegli API key nako.
  * API key / Vertex vaparaycha asel tar fakt env badla (ANTHROPIC_API_KEY, CLAUDE_CODE_USE_VERTEX).
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import path from "node:path";
 
 const CLAUDE = process.env.CLAUDE_BIN || "claude";
 const MODEL = process.env.CEO_MODEL; // nasel tar Claude Code cha default
+
+/**
+ * Konta Claude account — `CLAUDE_CONFIG_DIR` (`.env`) asel tar to, nahitar `~/.claude`.
+ * Login nasel tar runner suruch nako (nahitar pratyek command fail).
+ */
+export function claudeAccount(): string {
+  let status: { loggedIn?: boolean; email?: string; subscriptionType?: string; authMethod?: string };
+  try {
+    status = JSON.parse(execFileSync(CLAUDE, ["auth", "status"], { env: process.env, encoding: "utf8" }));
+  } catch {
+    status = {};
+  }
+  const dir = process.env.CLAUDE_CONFIG_DIR ?? "~/.claude";
+  if (!status.loggedIn) {
+    console.error(`✘ Claude login nahi (${dir}). Ekda: CLAUDE_CONFIG_DIR=${dir} claude → /login`);
+    process.exit(1);
+  }
+  return `${status.email ?? status.authMethod} (${status.subscriptionType ?? status.authMethod}, ${dir})`;
+}
 
 /** Agent la fakt edit + checks; commit / push / deploy runner swatah karto (approve nantar). */
 const ALLOWED = [

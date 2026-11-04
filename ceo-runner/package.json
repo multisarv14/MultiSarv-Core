@@ -7,8 +7,8 @@
     "node": ">=23.6"
   },
   "scripts": {
-    "start": "node src/index.ts",
-    "route": "node src/route-test.ts",
+    "start": "node --env-file-if-exists=.env src/index.ts",
+    "route": "node --env-file-if-exists=.env src/route-test.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {

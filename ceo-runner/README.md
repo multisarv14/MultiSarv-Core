@@ -62,6 +62,10 @@ Test (kaam nahi, fakt olkh): `npm run route -- "garage app madhe job card la sea
 
 ## Model / auth badlaycha
 
+Vegla Claude account: `ceo-runner/.env` madhe `CLAUDE_CONFIG_DIR=/Users/<you>/.claude-account-b`
+(git madhe jat nahi). Ekda login: `CLAUDE_CONFIG_DIR=~/.claude-account-b claude` → `/login`.
+Runner suru hotana konta account te dakhavto; login nasel tar suruch hot nahi.
+
 ```bash
 CEO_MODEL=opus npm start                      # agent model
 CEO_ROUTER_MODEL=haiku                        # project olkhayla (default)

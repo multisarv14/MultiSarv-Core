@@ -12,7 +12,7 @@ import os from "node:os";
 
 import type { DocumentReference } from "firebase-admin/firestore";
 
-import { runAgent, type AgentResult } from "./claude.ts";
+import { claudeAccount, runAgent, type AgentResult } from "./claude.ts";
 import { db, now } from "./firebase.ts";
 import { branchOf, commitAll, changedFiles, diffStat, dropTask, mergeBase, pushAll, releaseWorktree, taskWorktree } from "./git.ts";
 import { loadProjects, publishProjects, type Project } from "./projects.ts";
@@ -31,6 +31,7 @@ interface Task {
   cost?: number;
 }
 
+console.log(`🤖 Claude: ${claudeAccount()}`);
 const projects = loadProjects();
 const byId = new Map(projects.map((p) => [p.id, p]));
 await publishProjects(projects);
