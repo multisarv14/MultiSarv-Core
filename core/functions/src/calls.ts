@@ -140,7 +140,7 @@ async function finish(ref: FirebaseFirestore.DocumentReference, decide: (c: Call
       {
         members: [c.caller, c.callee].sort(),
         names: c.names,
-        last: { id: msg.id, text, by: c.caller, byName: c.names[c.caller] ?? "", attachment: null, mentions: [], replyToBy: null },
+        last: { id: msg.id, text, by: c.caller, byName: c.names[c.caller] ?? "", attachment: null, mentions: [], replyToBy: null, deleted: false, edited: false, system: false },
         updatedAt: now(),
         reads: { [c.caller]: now() },
         unread: { [c.caller]: 0, ...(missed && { [c.callee]: FieldValue.increment(1) }) },

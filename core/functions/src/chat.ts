@@ -190,6 +190,10 @@ async function post(t: Target, uid: string, me: AdminDoc, m: Outgoing) {
     attachment: m.attachment ? (m.attachment.type.startsWith("audio/") ? "🎤" : m.attachment.name) : null,
     mentions: m.mentions,
     replyToBy: m.replyTo?.by ?? null,
+    // set merge nested map merge karto — juna delete / edit / system flag clear kara.
+    deleted: false,
+    edited: false,
+    system: false,
   };
   const counters = {
     // Pathavnaryane vachlela; baki saglyanna +1 unread.
