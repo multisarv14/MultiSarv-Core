@@ -20,13 +20,18 @@ Future<T> callCore<T>(String name, [Map<String, dynamic> data = const {}]) async
     return res.data as T;
   } on FirebaseFunctionsException catch (e) {
     if (e.code == 'unavailable' || e.code == 'deadline-exceeded') throw AppError(_unreachable);
-    throw AppError(errorText(e.message ?? e.code));
+    // Corporate Affairs validation — konta field chukla (`details.field`).
+    final field = e.details is Map ? (e.details as Map)['field'] : null;
+    throw AppError(errorText(e.message ?? e.code), field: field is String ? field : null);
   }
 }
 
 class AppError implements Exception {
-  AppError(this.message);
+  AppError(this.message, {this.field});
   final String message;
+
+  /// Server ne nakarlela form field (Corporate Affairs `corpBadField`).
+  final String? field;
   @override
   String toString() => message;
 }
@@ -67,6 +72,16 @@ const _errors = {
   'badStatusMove': "This status change isn't allowed.",
   'ticketNotFound': 'Ticket not found.',
   'badComment': 'Comment must be 1–2000 characters.',
+  'superOnly': 'Only a super admin can do this.',
+  'corpBadKind': 'Unknown record type.',
+  'corpNotFound': 'Record not found.',
+  'corpBadField': 'Please check the entered values.',
+  'corpShareBalance': "This would make a shareholder's holding negative — the transferor doesn't hold enough shares.",
+  'corpArchived': 'Restore this record before changing it.',
+  'corpNotPossible': "This action isn't possible for this record.",
+  'corpInUse': 'Other active records are linked to this one — archive those first.',
+  'corpTooManyFiles': 'A record can have at most 50 documents.',
+  'corpBadFile': 'This document is invalid or missing.',
 };
 
 String errorText(Object err) {

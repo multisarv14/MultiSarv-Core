@@ -1,7 +1,18 @@
 import {
   BellRing,
   Bot,
+  Briefcase,
   Building2,
+  CalendarCheck,
+  ChartPie,
+  Copyright,
+  FolderLock,
+  Gavel,
+  HandCoins,
+  Landmark,
+  LayoutGrid,
+  Network,
+  UserCog,
   Tag,
   CreditCard,
   FileText,
@@ -29,6 +40,8 @@ export interface MasterNavItem {
   superOnly?: boolean;
   /** Ya module cha "view" asel tar disto (Module Access). */
   module?: ModuleKey;
+  /** Fakt ha exact path asel tarach active (group cha "Overview"). */
+  end?: boolean;
   children?: MasterNavItem[];
 }
 
@@ -46,6 +59,26 @@ export const MASTER_NAV: MasterNavItem[] = [
   { to: "/chat", label: "master.nav.chat", icon: MessagesSquare },
   { to: "/notifications", label: "master.nav.notifications", icon: BellRing, superOnly: true },
   { to: "/ceo", label: "master.nav.ceo", icon: Bot, superOnly: true },
+  // Confidential — fakt super admin (server `corp*` callables pan `requireSuper`).
+  {
+    to: "/corporate",
+    label: "master.nav.corporate",
+    icon: Briefcase,
+    superOnly: true,
+    children: [
+      { to: "/corporate", label: "corp.nav.overview", icon: LayoutGrid, end: true },
+      { to: "/corporate/company", label: "corp.s.company", icon: Building2 },
+      { to: "/corporate/directors", label: "corp.s.directors", icon: UserCog },
+      { to: "/corporate/shareholders", label: "corp.s.shareholders", icon: ChartPie },
+      { to: "/corporate/capital", label: "corp.s.capital", icon: Landmark },
+      { to: "/corporate/investors", label: "corp.s.investors", icon: HandCoins },
+      { to: "/corporate/documents", label: "corp.s.documents", icon: FolderLock },
+      { to: "/corporate/meetings", label: "corp.s.meetings", icon: Gavel },
+      { to: "/corporate/compliance", label: "corp.s.compliance", icon: CalendarCheck },
+      { to: "/corporate/assets", label: "corp.s.assets", icon: Copyright },
+      { to: "/corporate/relatedParties", label: "corp.s.relatedParties", icon: Network },
+    ],
+  },
   {
     to: "/settings",
     label: "master.nav.settings",

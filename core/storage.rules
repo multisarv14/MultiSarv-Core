@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Multisarv core Storage — fakt Internal Chat attachments.
+// Multisarv core Storage — Internal Chat attachments ani Corporate Affairs documents.
 // chat/{chatId}/{uploader}/{file}: uploader swatah, fakt swatahchya chat madhe (1:1 / group);
 // 10 MB paryant, common file types ani voice messages (audio). Vachne fakt tya chat che members.
 service firebase.storage {
@@ -26,6 +26,27 @@ service firebase.storage {
         // Video 50 MB, APK 100 MB, baki 10 MB (functions `chatMaxFor` sobat same).
         && request.resource.size <= (request.resource.contentType.matches('video/.*') ? 50 : request.resource.contentType == 'application/vnd.android.package-archive' ? 100 : 10) * 1024 * 1024
         && request.resource.contentType.matches('application/vnd[.]android[.]package-archive|video/(mp4|quicktime|webm|3gpp)|image/(png|jpe?g|gif|webp)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)|audio/(webm|ogg|mp4|mpeg|aac|x-m4a|wav)');
+      allow update, delete: if false;
+    }
+
+    // Fakt active super admin — claim ani `admins` doc (role + active) donhi.
+    function isSuper() {
+      return request.auth != null
+        && request.auth.token.get('superAdmin', false) == true
+        && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('role', '') == 'superAdmin'
+        && firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.get('active', false) == true;
+    }
+
+    // Corporate Affairs — corporate/{kind}/{recordId}/{file}: record asel tarach upload,
+    // 25 MB paryant (functions `MAX_FILE_MB`), documents / images. Record la jodne
+    // (`corpAttach`), kadhne (`corpDetach`) ani pratyek ughadne (`corpFileOpen`) audit hote.
+    match /corporate/{kind}/{recordId}/{fileName} {
+      allow read: if isSuper();
+      allow create: if isSuper()
+        && firestore.exists(/databases/(default)/documents/$('corp_' + kind)/$(recordId))
+        && request.resource.size > 0
+        && request.resource.size <= 25 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpe?g|gif|webp|heic)|application/pdf|text/(plain|csv)|application/(msword|vnd[.]openxmlformats-officedocument[.](wordprocessingml[.]document|spreadsheetml[.]sheet|presentationml[.]presentation)|vnd[.]ms-excel|vnd[.]ms-powerpoint)|application/(zip|x-zip-compressed)');
       allow update, delete: if false;
     }
 

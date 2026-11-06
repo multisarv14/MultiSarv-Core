@@ -5,10 +5,12 @@ import '../../app/locator.dart';
 import '../../app/theme.dart';
 import '../../core/backend.dart';
 import '../../data/chat_repository.dart';
+import '../../data/corporate_repository.dart';
 import '../../data/ticket_repository.dart';
 import '../../services/push_service.dart';
 import '../../services/session_service.dart';
 import '../conversation/widgets/avatar.dart';
+import '../corporate/corporate_home_view.dart';
 
 /// Profile — majhi mahiti, access, theme, test notification, password, log out.
 class ProfileView extends StatefulWidget {
@@ -104,6 +106,7 @@ class _ProfileViewState extends State<ProfileView> {
     await _push.stop();
     locator<ChatRepository>().clear();
     locator<TicketRepository>().clear();
+    locator<CorporateRepository>().clear();
     await _session.signOut();
   }
 
@@ -168,6 +171,21 @@ class _ProfileViewState extends State<ProfileView> {
               ],
             ],
           ),
+          // Confidential — fakt super admin (server `corp*` callables pan tapastat).
+          if (me.superAdmin) ...[
+            const SizedBox(height: 20),
+            const _Label('Super Admin'),
+            _Group(
+              children: [
+                _Tile(
+                  icon: Icons.business_center_rounded,
+                  title: 'Corporate Affairs',
+                  subtitle: 'Company, directors, shareholders, investors, compliance',
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CorporateHomeView())),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           const _Label('Settings'),
           _Group(

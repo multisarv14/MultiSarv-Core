@@ -24,7 +24,7 @@ const linkCls = (active: boolean) =>
 
 function Item({ item, onNavigate }: { item: MasterNavItem; onNavigate?: () => void }) {
   return (
-    <NavLink to={item.to} end={item.to === "/"} onClick={onNavigate} className={({ isActive }) => linkCls(isActive)}>
+    <NavLink to={item.to} end={item.to === "/" || item.end} onClick={onNavigate} className={({ isActive }) => linkCls(isActive)}>
       {({ isActive }) => (
         <>
           {isActive && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent" />}

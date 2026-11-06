@@ -6,6 +6,7 @@ import { chatGroups } from "./messages/chatGroups";
 import { common } from "./messages/common";
 import { ceoMsgs } from "./messages/ceo";
 import { coreAdmin } from "./messages/coreAdmin";
+import { corporateMsgs } from "./messages/corporate";
 import { dashboard } from "./messages/dashboard";
 import { evermind } from "./messages/evermind";
 import { finance } from "./messages/finance";
@@ -21,7 +22,7 @@ import { users } from "./messages/users";
 
 export type { Lang } from "./define";
 
-const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin, ...society, ...societyAdmin, ...evermind, ...chatGroups, ...ceoMsgs };
+const messages = { ...common, ...access, ...master, ...ticketsMsgs, ...projectsMsgs, ...shell, ...dashboard, ...users, ...tasks, ...finance, ...notifications, ...coreAdmin, ...society, ...societyAdmin, ...evermind, ...chatGroups, ...ceoMsgs, ...corporateMsgs };
 export type MsgKey = keyof typeof messages;
 export type Params = Record<string, string | number>;
 

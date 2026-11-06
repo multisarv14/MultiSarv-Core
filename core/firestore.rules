@@ -170,6 +170,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Corporate Affairs (`corp_*`, `corp_history`) — confidential: client la thet kahich
+    // access nahi (super admin la pan). Sagle reads / writes `corp*` callables madhun
+    // (`requireSuper`), tyamule pratyek vachan / badal server tapasto ani audit hoto.
+    match /corp_history/{id} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
